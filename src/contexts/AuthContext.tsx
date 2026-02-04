@@ -246,7 +246,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('[Auth] Event:', event, 'Session:', !!session);
+        console.log('[Auth] Event:', event, 'Session:', !!session, 'InitialCheckDone:', initialCheckDone);
         
         // Validate email domain for Gmail-only access
         if (session?.user?.email && !isAllowedEmailDomain(session.user.email)) {
@@ -263,8 +263,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         setSession(session);
         
-        // Only check MFA on fresh SIGNED_IN events (not on page load)
-        if (event === 'SIGNED_IN' && session?.user && initialCheckDone) {
+        // Check MFA on SIGNED_IN events (after initial session check is done)
+        if (event === 'SIGNED_IN' && session?.user) {
           const hasMFA = await checkMFAStatus(session.user.id);
           
           if (hasMFA) {

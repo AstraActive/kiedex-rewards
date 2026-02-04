@@ -167,10 +167,11 @@ export function useMFA() {
         .from('user_mfa')
         .select('secret, is_enabled')
         .eq('user_id', user.id)
-        .single();
+        .maybeSingle();
 
-      if (mfaError || !mfaData || !mfaData.is_enabled) {
-        throw new Error('MFA not configured');
+      if (mfaError) throw mfaError;
+      if (!mfaData || !mfaData.is_enabled) {
+        throw new Error('MFA is not enabled');
       }
 
       // Verify TOTP code before disabling
@@ -181,24 +182,25 @@ export function useMFA() {
         throw new Error('Invalid verification code');
       }
 
-      // Get all MFA factors
+      // Get all MFA factors from Supabase Auth
       const { data: factors } = await supabase.auth.mfa.listFactors();
       
-      // Unenroll all factors
+      // Unenroll all TOTP factors
       if (factors?.totp && factors.totp.length > 0) {
         for (const factor of factors.totp) {
-          await supabase.auth.mfa.unenroll({ factorId: factor.id });
+          const { error: unenrollError } = await supabase.auth.mfa.unenroll({ 
+            factorId: factor.id 
+          });
+          if (unenrollError) {
+            console.error('Failed to unenroll factor:', unenrollError);
+          }
         }
       }
 
-      // Update database
+      // Delete the MFA record from database
       const { error: dbError } = await supabase
         .from('user_mfa')
-        .update({
-          is_enabled: false,
-          backup_codes: null,
-          secret: '',
-        })
+        .delete()
         .eq('user_id', user.id);
 
       if (dbError) throw dbError;
