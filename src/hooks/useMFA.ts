@@ -145,7 +145,7 @@ export function useMFA() {
 
   // Disable MFA
   const disableMutation = useMutation({
-    mutationFn: async (code: string) => {
+    mutationFn: async ({ code, isBackupCode }: { code: string; isBackupCode?: boolean }) => {
       if (!user?.id) throw new Error('Not authenticated');
 
       // Get all MFA factors
@@ -155,21 +155,50 @@ export function useMFA() {
         throw new Error('No MFA factors found');
       }
 
-      // Verify the TOTP code before disabling
-      const factor = factors.totp[0];
-      const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
-        factorId: factor.id,
-      });
+      if (isBackupCode) {
+        // Verify backup code
+        const { data: mfaData, error: mfaError } = await supabase
+          .from('user_mfa')
+          .select('backup_codes')
+          .eq('user_id', user.id)
+          .single();
 
-      if (challengeError) throw challengeError;
+        if (mfaError || !mfaData?.backup_codes) {
+          throw new Error('No backup codes found');
+        }
 
-      const { error: verifyError } = await supabase.auth.mfa.verify({
-        factorId: factor.id,
-        challengeId: challengeData.id,
-        code,
-      });
+        // Check if the provided code matches any backup code
+        const hashedCode = btoa(code + user.id);
+        const isValid = mfaData.backup_codes.some((stored: string) => stored === hashedCode);
 
-      if (verifyError) throw new Error('Invalid verification code');
+        if (!isValid) {
+          throw new Error('Invalid backup code');
+        }
+
+        // Remove used backup code
+        const updatedBackupCodes = mfaData.backup_codes.filter((c: string) => c !== hashedCode);
+        
+        await supabase
+          .from('user_mfa')
+          .update({ backup_codes: updatedBackupCodes })
+          .eq('user_id', user.id);
+      } else {
+        // Verify the TOTP code before disabling
+        const factor = factors.totp[0];
+        const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
+          factorId: factor.id,
+        });
+
+        if (challengeError) throw challengeError;
+
+        const { error: verifyError } = await supabase.auth.mfa.verify({
+          factorId: factor.id,
+          challengeId: challengeData.id,
+          code,
+        });
+
+        if (verifyError) throw new Error('Invalid verification code');
+      }
 
       // Unenroll all factors
       for (const f of factors.totp) {

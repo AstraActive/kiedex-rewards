@@ -11,12 +11,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, AlertTriangle } from 'lucide-react';
+import { Loader2, AlertTriangle, KeyRound } from 'lucide-react';
 
 interface MFADisableDialogProps {
   open: boolean;
   onClose: () => void;
-  onDisable: (code: string) => void;
+  onDisable: (code: string, isBackupCode?: boolean) => void;
   isDisabling: boolean;
 }
 
@@ -27,17 +27,25 @@ export function MFADisableDialog({
   isDisabling,
 }: MFADisableDialogProps) {
   const [code, setCode] = useState('');
+  const [useBackupCode, setUseBackupCode] = useState(false);
 
   const handleDisable = () => {
-    if (code.length === 6) {
-      onDisable(code);
+    const minLength = useBackupCode ? 8 : 6;
+    if (code.length >= minLength) {
+      onDisable(code, useBackupCode);
       setCode('');
     }
   };
 
   const handleClose = () => {
     setCode('');
+    setUseBackupCode(false);
     onClose();
+  };
+
+  const toggleBackupCode = () => {
+    setCode('');
+    setUseBackupCode(!useBackupCode);
   };
 
   return (
@@ -49,7 +57,10 @@ export function MFADisableDialog({
             Disable Two-Factor Authentication
           </DialogTitle>
           <DialogDescription>
-            Enter your 6-digit verification code from your authenticator app to confirm.
+            {useBackupCode 
+              ? 'Enter one of your backup codes to confirm.'
+              : 'Enter your 6-digit verification code from your authenticator app to confirm.'
+            }
           </DialogDescription>
         </DialogHeader>
 
@@ -61,23 +72,46 @@ export function MFADisableDialog({
           </Alert>
 
           <div className="space-y-2">
-            <Label htmlFor="code">Verification Code</Label>
+            <Label htmlFor="code">
+              {useBackupCode ? 'Backup Code' : 'Verification Code'}
+            </Label>
             <Input
               id="code"
               type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              maxLength={6}
-              placeholder="000000"
+              inputMode={useBackupCode ? 'text' : 'numeric'}
+              pattern={useBackupCode ? '[A-Z0-9]*' : '[0-9]*'}
+              maxLength={useBackupCode ? 8 : 6}
+              placeholder={useBackupCode ? 'XXXXXXXX' : '000000'}
               value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+              onChange={(e) => setCode(useBackupCode ? e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') : e.target.value.replace(/\D/g, ''))}
               onKeyDown={(e) => e.key === 'Enter' && handleDisable()}
               autoFocus
-              className="text-center text-2xl tracking-widest"
+              className="text-center text-2xl tracking-widest font-mono"
             />
             <p className="text-xs text-muted-foreground text-center">
-              Enter the code from your authenticator app
+              {useBackupCode 
+                ? 'Enter one of your 8-character backup codes'
+                : 'Enter the code from your authenticator app'
+              }
             </p>
+          </div>
+
+          {/* Toggle between verification code and backup code */}
+          <div className="flex items-center justify-center pt-2">
+            <Button
+              type="button"
+              variant="link"
+              size="sm"
+              onClick={toggleBackupCode}
+              disabled={isDisabling}
+              className="text-xs text-muted-foreground hover:text-primary"
+            >
+              <KeyRound className="mr-2 h-3 w-3" />
+              {useBackupCode 
+                ? 'Use authenticator app instead' 
+                : 'Lost authenticator app? Use backup code'
+              }
+            </Button>
           </div>
         </div>
 
@@ -88,7 +122,7 @@ export function MFADisableDialog({
           <Button
             variant="destructive"
             onClick={handleDisable}
-            disabled={code.length !== 6 || isDisabling}
+            disabled={(useBackupCode ? code.length < 8 : code.length !== 6) || isDisabling}
           >
             {isDisabling ? (
               <>

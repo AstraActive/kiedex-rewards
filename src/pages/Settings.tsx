@@ -60,8 +60,8 @@ function SettingsContent() {
     verify(args);
   };
 
-  const handleDisableMFA = (code: string) => {
-    disable(code, {
+  const handleDisableMFA = (code: string, isBackupCode?: boolean) => {
+    disable({ code, isBackupCode }, {
       onSuccess: () => {
         setShowMFADisable(false);
       },
