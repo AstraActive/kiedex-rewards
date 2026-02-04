@@ -82,11 +82,13 @@ export function useMFA() {
     mutationFn: async ({ 
       factorId, 
       code, 
-      backupCodes 
+      backupCodes,
+      secret 
     }: { 
       factorId: string; 
       code: string; 
       backupCodes: string[];
+      secret: string;
     }) => {
       if (!user?.id) throw new Error('Not authenticated');
 
@@ -115,6 +117,7 @@ export function useMFA() {
         .from('user_mfa')
         .upsert({
           user_id: user.id,
+          secret: secret,
           is_enabled: true,
           backup_codes: hashedCodes,
           enabled_at: new Date().toISOString(),

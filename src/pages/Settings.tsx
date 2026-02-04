@@ -55,7 +55,12 @@ function SettingsContent() {
   };
 
   const handleVerifyMFA = (args: { factorId: string; code: string; backupCodes: string[] }) => {
-    verify(args, {
+    if (!enrollmentData) return;
+    
+    verify({
+      ...args,
+      secret: enrollmentData.secret,
+    }, {
       onSuccess: () => {
         setShowMFASetup(false);
       },

@@ -193,11 +193,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Verify TOTP code
-      const totp = new TOTP();
-      const isValid = totp.verify({
-        token: code,
-        secret: mfaData.secret,
-      });
+      const totp = new TOTP({ secret: mfaData.secret });
+      const isValid = totp.verify(code);
 
       if (!isValid) {
         toast.error('Invalid verification code');
