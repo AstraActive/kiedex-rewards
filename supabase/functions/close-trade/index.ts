@@ -311,12 +311,12 @@ Deno.serve(async (req) => {
     );
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error('Close trade error:', errorMessage);
+    console.error('❌ Close trade error:', errorMessage);
     return new Response(
       JSON.stringify({ success: false, error: errorMessage }),
       {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 400,
+        status: 200, // Return 200 so SDK passes through the actual error message
       }
     );
   }
