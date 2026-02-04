@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { RequireAuth } from '@/components/auth/RequireAuth';
+import { RequireMFA } from '@/components/auth/RequireMFA';
 import { RequireWallet } from '@/components/auth/RequireWallet';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -189,9 +190,11 @@ function LeaderboardContent() {
 export default function Leaderboard() {
   return (
     <RequireAuth>
-      <RequireWallet>
-        <LeaderboardContent />
-      </RequireWallet>
+      <RequireMFA>
+        <RequireWallet>
+          <LeaderboardContent />
+        </RequireWallet>
+      </RequireMFA>
     </RequireAuth>
   );
 }

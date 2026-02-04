@@ -5,8 +5,6 @@ export interface AuthContextType {
   user: User | null;
   session: Session | null;
   loading: boolean;
-  mfaPending: boolean;
-  setMfaPending: (pending: boolean) => void;
   signInWithGoogle: () => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }

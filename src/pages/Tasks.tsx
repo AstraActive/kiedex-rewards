@@ -1,6 +1,7 @@
 import { memo, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { RequireAuth } from '@/components/auth/RequireAuth';
+import { RequireMFA } from '@/components/auth/RequireMFA';
 import { RequireWallet } from '@/components/auth/RequireWallet';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -170,9 +171,11 @@ const TasksContent = memo(function TasksContent() {
 export default function Tasks() {
   return (
     <RequireAuth>
-      <RequireWallet>
-        <TasksContent />
-      </RequireWallet>
+      <RequireMFA>
+        <RequireWallet>
+          <TasksContent />
+        </RequireWallet>
+      </RequireMFA>
     </RequireAuth>
   );
 }

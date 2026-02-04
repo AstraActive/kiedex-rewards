@@ -5,6 +5,7 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,17 +16,15 @@ import { Loader2, Shield, KeyRound } from 'lucide-react';
 interface MFAVerificationDialogProps {
   open: boolean;
   onVerify: (code: string, isBackupCode?: boolean) => Promise<void>;
-  onCancel: () => void;
   isVerifying: boolean;
-  error?: string;
+  onCancel: () => void;
 }
 
 export function MFAVerificationDialog({
   open,
   onVerify,
-  onCancel,
   isVerifying,
-  error,
+  onCancel,
 }: MFAVerificationDialogProps) {
   const [code, setCode] = useState('');
   const [useBackupCode, setUseBackupCode] = useState(false);
@@ -34,6 +33,7 @@ export function MFAVerificationDialog({
     const minLength = useBackupCode ? 8 : 6;
     if (code.length >= minLength) {
       await onVerify(code, useBackupCode);
+      setCode('');
     }
   };
 
@@ -42,41 +42,35 @@ export function MFAVerificationDialog({
     setUseBackupCode(!useBackupCode);
   };
 
-  const handleCancel = () => {
-    setCode('');
-    setUseBackupCode(false);
-    onCancel();
-  };
-
   return (
-    <Dialog open={open} onOpenChange={handleCancel}>
+    <Dialog open={open} onOpenChange={() => {}}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Shield className="h-5 w-5 text-primary" />
-            Two-Factor Authentication Required
+            Two-Factor Authentication
           </DialogTitle>
           <DialogDescription>
             {useBackupCode 
               ? 'Enter one of your backup codes to verify your identity.'
-              : 'Enter the 6-digit code from your authenticator app to continue.'
+              : 'Enter your 6-digit verification code from your authenticator app.'
             }
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {error && (
-            <Alert variant="destructive">
-              <AlertDescription className="text-xs">{error}</AlertDescription>
-            </Alert>
-          )}
+          <Alert>
+            <AlertDescription className="text-xs">
+              🔒 Your account is protected with 2FA. Please verify to continue.
+            </AlertDescription>
+          </Alert>
 
           <div className="space-y-2">
-            <Label htmlFor="mfa-code">
+            <Label htmlFor="code">
               {useBackupCode ? 'Backup Code' : 'Verification Code'}
             </Label>
             <Input
-              id="mfa-code"
+              id="code"
               type="text"
               inputMode={useBackupCode ? 'text' : 'numeric'}
               pattern={useBackupCode ? '[A-Z0-9]*' : '[0-9]*'}
@@ -86,8 +80,8 @@ export function MFAVerificationDialog({
               onChange={(e) => setCode(useBackupCode ? e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '') : e.target.value.replace(/\D/g, ''))}
               onKeyDown={(e) => e.key === 'Enter' && handleVerify()}
               autoFocus
-              disabled={isVerifying}
               className="text-center text-2xl tracking-widest font-mono"
+              disabled={isVerifying}
             />
             <p className="text-xs text-muted-foreground text-center">
               {useBackupCode 
@@ -116,8 +110,12 @@ export function MFAVerificationDialog({
           </div>
         </div>
 
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={handleCancel} disabled={isVerifying}>
+        <DialogFooter>
+          <Button 
+            variant="outline" 
+            onClick={onCancel} 
+            disabled={isVerifying}
+          >
             Cancel
           </Button>
           <Button
@@ -130,10 +128,10 @@ export function MFAVerificationDialog({
                 Verifying...
               </>
             ) : (
-              'Verify & Continue'
+              'Verify'
             )}
           </Button>
-        </div>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

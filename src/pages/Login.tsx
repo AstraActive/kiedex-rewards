@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,85 +6,22 @@ import { useAuth } from '@/hooks/useAuth';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { MFAVerificationDialog } from '@/components/auth/MFAVerificationDialog';
-import { useMFAVerification } from '@/hooks/useMFAVerification';
 
 export default function Login() {
-  const { user, loading, signInWithGoogle, mfaPending, setMfaPending, signOut } = useAuth();
+  const { user, loading, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
   const [isSigningIn, setIsSigningIn] = useState(false);
-  const [showMFADialog, setShowMFADialog] = useState(false);
-  const { checkMFAStatus, verifyMFACode, isVerifying, verificationError } = useMFAVerification();
-  const mfaCheckedRef = useRef(false);
 
   // Redirect to dashboard after login, or to the originally requested page
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard';
 
-  // Redirect authenticated users without MFA to dashboard
   useEffect(() => {
-    if (!loading && user && !mfaPending && !showMFADialog) {
-      console.log('[Login] User logged in, checking MFA status...');
-      // Only navigate if we haven't checked MFA yet
-      // The MFA check effect will handle navigation
-    }
-  }, [user, loading, mfaPending, showMFADialog]);
-
-  // Check if MFA is enabled after successful login
-  useEffect(() => {
-    const handleMFACheck = async () => {
-      // Only check once per session using ref
-      if (!loading && user && !mfaCheckedRef.current) {
-        mfaCheckedRef.current = true;
-        console.log('[Login] Checking MFA status for user:', user.id);
-        const mfaEnabled = await checkMFAStatus(user.id);
-        
-        if (mfaEnabled) {
-          console.log('[Login] MFA is enabled, showing dialog');
-          setShowMFADialog(true);
-          setMfaPending(true);
-        } else {
-          console.log('[Login] MFA not enabled, navigating to:', from);
-          navigate(from, { replace: true });
-        }
-      }
-    };
-
-    handleMFACheck();
-  }, [user, loading, navigate, from, checkMFAStatus, setMfaPending]);
-
-  // Reset ref when user changes or logs out
-  useEffect(() => {
-    if (!user) {
-      console.log('[Login] User logged out, resetting MFA check ref');
-      mfaCheckedRef.current = false;
-      setShowMFADialog(false);
-    }
-  }, [user]);
-
-  const handleMFAVerify = async (code: string, isBackupCode?: boolean) => {
-    const result = await verifyMFACode(code, isBackupCode);
-    
-    if (result.success) {
-      setShowMFADialog(false);
-      setMfaPending(false);
-      // Navigate to dashboard after successful MFA verification
+    if (!loading && user) {
       navigate(from, { replace: true });
     }
-  };
-
-  const handleMFACancel = async () => {
-    setShowMFADialog(false);
-    setMfaPending(false);
-    // Sign out if user cancels MFA verification
-    await signOut();
-    toast({
-      title: 'Sign in cancelled',
-      description: 'MFA verification is required to continue.',
-      variant: 'destructive',
-    });
-  };
+  }, [user, loading, navigate, from]);
 
   const handleGoogleSignIn = async () => {
     setIsSigningIn(true);
@@ -167,15 +104,6 @@ export default function Login() {
           </CardContent>
         </Card>
       </div>
-
-      {/* MFA Verification Dialog */}
-      <MFAVerificationDialog
-        open={showMFADialog}
-        onVerify={handleMFAVerify}
-        onCancel={handleMFACancel}
-        isVerifying={isVerifying}
-        error={verificationError}
-      />
     </AppLayout>
   );
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { RequireAuth } from '@/components/auth/RequireAuth';
+import { RequireMFA } from '@/components/auth/RequireMFA';
 import { RequireWallet } from '@/components/auth/RequireWallet';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -232,9 +233,11 @@ function ReferralContent() {
 export default function Referral() {
   return (
     <RequireAuth>
-      <RequireWallet>
-        <ReferralContent />
-      </RequireWallet>
+      <RequireMFA>
+        <RequireWallet>
+          <ReferralContent />
+        </RequireWallet>
+      </RequireMFA>
     </RequireAuth>
   );
 }

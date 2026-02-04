@@ -152,7 +152,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [mfaPending, setMfaPending] = useState(false);
   const processedUsersRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
@@ -231,11 +230,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
-    setMfaPending(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, mfaPending, setMfaPending, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, signInWithGoogle, signOut }}>
       {children}
     </AuthContext.Provider>
   );

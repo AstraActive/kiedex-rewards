@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { RequireAuth } from '@/components/auth/RequireAuth';
+import { RequireMFA } from '@/components/auth/RequireMFA';
 import { RequireWallet } from '@/components/auth/RequireWallet';
 import { PriceCardList } from '@/components/market/PriceCard';
 import { PriceChart } from '@/components/market/PriceChart';
@@ -223,9 +224,11 @@ function DashboardContent() {
 export default function Dashboard() {
   return (
     <RequireAuth>
-      <RequireWallet>
-        <DashboardContent />
-      </RequireWallet>
+      <RequireMFA>
+        <RequireWallet>
+          <DashboardContent />
+        </RequireWallet>
+      </RequireMFA>
     </RequireAuth>
   );
 }

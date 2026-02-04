@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { RequireAuth } from '@/components/auth/RequireAuth';
+import { RequireMFA } from '@/components/auth/RequireMFA';
 import { RequireWallet } from '@/components/auth/RequireWallet';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -476,9 +477,11 @@ function WalletContent() {
 export default function Wallet() {
   return (
     <RequireAuth>
-      <RequireWallet>
-        <WalletContent />
-      </RequireWallet>
+      <RequireMFA>
+        <RequireWallet>
+          <WalletContent />
+        </RequireWallet>
+      </RequireMFA>
     </RequireAuth>
   );
 }

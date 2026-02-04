@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { RequireAuth } from '@/components/auth/RequireAuth';
+import { RequireMFA } from '@/components/auth/RequireMFA';
 import { RequireWallet } from '@/components/auth/RequireWallet';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -147,9 +148,11 @@ function TradeContent() {
 export default function Trade() {
   return (
     <RequireAuth>
-      <RequireWallet>
-        <TradeContent />
-      </RequireWallet>
+      <RequireMFA>
+        <RequireWallet>
+          <TradeContent />
+        </RequireWallet>
+      </RequireMFA>
     </RequireAuth>
   );
 }
