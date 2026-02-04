@@ -241,12 +241,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    let initialCheckDone = false;
-
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('[Auth] Event:', event, 'Session:', !!session, 'InitialCheckDone:', initialCheckDone);
+        console.log('[Auth] Event:', event, 'Session:', !!session);
         
         // Validate email domain for Gmail-only access
         if (session?.user?.email && !isAllowedEmailDomain(session.user.email)) {
@@ -263,7 +261,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         setSession(session);
         
-        // Check MFA on SIGNED_IN events (after initial session check is done)
+        // Only check MFA on SIGNED_IN events (fresh Google login)
+        // Don't check on INITIAL_SESSION, TOKEN_REFRESHED, etc.
         if (event === 'SIGNED_IN' && session?.user) {
           const hasMFA = await checkMFAStatus(session.user.id);
           
@@ -276,7 +275,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         }
         
-        // No MFA or other events - proceed normally
+        // For all other events or no MFA - proceed normally
         setUser(session?.user ?? null);
         setLoading(false);
 
@@ -297,8 +296,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      initialCheckDone = true;
-      
       // Validate email domain for Gmail-only access
       if (session?.user?.email && !isAllowedEmailDomain(session.user.email)) {
         // Blocked domain - sign out immediately

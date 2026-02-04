@@ -47,25 +47,32 @@ export function useMFA() {
     mutationFn: async () => {
       if (!user?.id) throw new Error('Not authenticated');
 
-      // First, check if any factors already exist
+      // First, check if MFA is enabled in database
+      const { data: mfaRecord } = await supabase
+        .from('user_mfa')
+        .select('is_enabled')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (mfaRecord?.is_enabled) {
+        throw new Error('You already have 2FA enabled. Please disable it first before setting up a new one.');
+      }
+
+      // Check if any factors already exist in Supabase Auth
       const { data: existingFactors } = await supabase.auth.mfa.listFactors();
       
       if (existingFactors?.totp && existingFactors.totp.length > 0) {
-        // Only try to unenroll unverified factors
+        // Try to clean up any orphaned factors
         for (const factor of existingFactors.totp) {
-          // Check if factor is verified - verified factors need to be disabled first
-          if (factor.factor_type === 'totp' && factor.friendly_name === 'KieDex Authenticator') {
-            // If there's already a factor with same name, user should disable it first
-            throw new Error('You already have 2FA enabled. Please disable it first before setting up a new one.');
-          }
-          
-          // Try to clean up any orphaned factors
           try {
             await supabase.auth.mfa.unenroll({ factorId: factor.id });
+            console.log('Cleaned up orphaned factor:', factor.id);
           } catch (error) {
-            console.warn('Failed to unenroll factor:', error);
-            // If unenroll fails, it's likely verified, so throw error
-            throw new Error('You already have 2FA enabled. Please disable it first before setting up a new one.');
+            console.warn('Failed to unenroll orphaned factor:', error);
+            // If unenroll fails, it might be verified, so check database again
+            if (mfaRecord?.is_enabled) {
+              throw new Error('You already have 2FA enabled. Please disable it first before setting up a new one.');
+            }
           }
         }
       }
