@@ -8,13 +8,10 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, AlertTriangle, ShieldAlert } from 'lucide-react';
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSlot,
-} from '@/components/ui/input-otp';
+import { Loader2, AlertTriangle } from 'lucide-react';
 
 interface MFADisableDialogProps {
   open: boolean;
@@ -52,7 +49,7 @@ export function MFADisableDialog({
             Disable Two-Factor Authentication
           </DialogTitle>
           <DialogDescription>
-            This will make your account less secure. Enter your verification code to confirm.
+            Enter your 6-digit verification code from your authenticator app to confirm.
           </DialogDescription>
         </DialogHeader>
 
@@ -64,38 +61,24 @@ export function MFADisableDialog({
           </Alert>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Verification Code</label>
-            <div className="flex justify-center">
-              <InputOTP
-                maxLength={6}
-                value={code}
-                onChange={setCode}
-                onComplete={handleDisable}
-                autoFocus
-              >
-                <InputOTPGroup>
-                  <InputOTPSlot index={0} />
-                  <InputOTPSlot index={1} />
-                  <InputOTPSlot index={2} />
-                  <InputOTPSlot index={3} />
-                  <InputOTPSlot index={4} />
-                  <InputOTPSlot index={5} />
-                </InputOTPGroup>
-              </InputOTP>
-            </div>
+            <Label htmlFor="code">Verification Code</Label>
+            <Input
+              id="code"
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={6}
+              placeholder="000000"
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+              onKeyDown={(e) => e.key === 'Enter' && handleDisable()}
+              autoFocus
+              className="text-center text-2xl tracking-widest"
+            />
             <p className="text-xs text-muted-foreground text-center">
-              Enter the 6-digit code from your authenticator app
+              Enter the code from your authenticator app
             </p>
           </div>
-
-          <Alert>
-            <ShieldAlert className="h-4 w-4" />
-            <AlertDescription className="text-xs">
-              <strong>Lost access to your authenticator?</strong>
-              <br />
-              Please contact our support center for assistance in recovering your account.
-            </AlertDescription>
-          </Alert>
         </div>
 
         <DialogFooter>

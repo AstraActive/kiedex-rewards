@@ -55,20 +55,15 @@ function SettingsContent() {
   };
 
   const handleVerifyMFA = (args: { factorId: string; code: string; backupCodes: string[] }) => {
-    if (!enrollmentData) return;
-    
-    verify({
-      ...args,
-      secret: enrollmentData.secret,
-    }, {
+    verify(args, {
       onSuccess: () => {
         setShowMFASetup(false);
       },
     });
   };
 
-  const handleDisableMFA = (code: string) => {
-    disable(code, {
+  const handleDisableMFA = (password: string) => {
+    disable(password, {
       onSuccess: () => {
         setShowMFADisable(false);
       },

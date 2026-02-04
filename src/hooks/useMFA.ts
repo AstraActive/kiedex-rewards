@@ -2,7 +2,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { TOTP } from 'otplib';
 
 interface MFAStatus {
   id: string;
@@ -47,36 +46,6 @@ export function useMFA() {
     mutationFn: async () => {
       if (!user?.id) throw new Error('Not authenticated');
 
-      // First, check if MFA is enabled in database
-      const { data: mfaRecord } = await supabase
-        .from('user_mfa')
-        .select('is_enabled')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (mfaRecord?.is_enabled) {
-        throw new Error('You already have 2FA enabled. Please disable it first before setting up a new one.');
-      }
-
-      // Check if any factors already exist in Supabase Auth
-      const { data: existingFactors } = await supabase.auth.mfa.listFactors();
-      
-      if (existingFactors?.totp && existingFactors.totp.length > 0) {
-        // Try to clean up any orphaned factors
-        for (const factor of existingFactors.totp) {
-          try {
-            await supabase.auth.mfa.unenroll({ factorId: factor.id });
-            console.log('Cleaned up orphaned factor:', factor.id);
-          } catch (error) {
-            console.warn('Failed to unenroll orphaned factor:', error);
-            // If unenroll fails, it might be verified, so check database again
-            if (mfaRecord?.is_enabled) {
-              throw new Error('You already have 2FA enabled. Please disable it first before setting up a new one.');
-            }
-          }
-        }
-      }
-
       // Enroll using Supabase Auth MFA
       const { data, error } = await supabase.auth.mfa.enroll({
         factorType: 'totp',
@@ -113,13 +82,11 @@ export function useMFA() {
     mutationFn: async ({ 
       factorId, 
       code, 
-      backupCodes,
-      secret 
+      backupCodes 
     }: { 
       factorId: string; 
       code: string; 
       backupCodes: string[];
-      secret: string;
     }) => {
       if (!user?.id) throw new Error('Not authenticated');
 
@@ -148,7 +115,6 @@ export function useMFA() {
         .from('user_mfa')
         .upsert({
           user_id: user.id,
-          secret: secret,
           is_enabled: true,
           backup_codes: hashedCodes,
           enabled_at: new Date().toISOString(),
@@ -179,76 +145,34 @@ export function useMFA() {
 
   // Disable MFA
   const disableMutation = useMutation({
-    mutationFn: async (code: string) => {
-      if (!user?.id) throw new Error('Not authenticated');
+    mutationFn: async (password: string) => {
+      if (!user?.id || !user?.email) throw new Error('Not authenticated');
 
-      // Get user's MFA secret to verify the code
-      const { data: mfaData, error: mfaError } = await supabase
-        .from('user_mfa')
-        .select('secret, is_enabled')
-        .eq('user_id', user.id)
-        .maybeSingle();
+      // Verify password before disabling
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password,
+      });
 
-      if (mfaError) throw mfaError;
-      if (!mfaData || !mfaData.is_enabled) {
-        throw new Error('MFA is not enabled');
-      }
+      if (signInError) throw new Error('Invalid password');
 
-      // Verify TOTP code before disabling
-      const totp = new TOTP({ secret: mfaData.secret });
-      const isValid = totp.verify(code);
-
-      if (!isValid) {
-        throw new Error('Invalid verification code');
-      }
-
-      // Get all MFA factors from Supabase Auth
+      // Get all MFA factors
       const { data: factors } = await supabase.auth.mfa.listFactors();
       
-      // Unenroll all TOTP factors (both verified and unverified)
+      // Unenroll all factors
       if (factors?.totp && factors.totp.length > 0) {
         for (const factor of factors.totp) {
-          try {
-            // Try to create a challenge and verify before unenrolling
-            const { data: challengeData } = await supabase.auth.mfa.challenge({
-              factorId: factor.id,
-            });
-            
-            if (challengeData) {
-              // Verify with the code user provided
-              await supabase.auth.mfa.verify({
-                factorId: factor.id,
-                challengeId: challengeData.id,
-                code: code,
-              });
-            }
-            
-            // Now unenroll the factor
-            const { error: unenrollError } = await supabase.auth.mfa.unenroll({ 
-              factorId: factor.id 
-            });
-            
-            if (unenrollError) {
-              console.error('Failed to unenroll factor:', unenrollError);
-              // Don't throw here, continue with database cleanup
-            }
-          } catch (error) {
-            console.error('Error during factor unenrollment:', error);
-            // Try direct unenroll for unverified factors
-            try {
-              await supabase.auth.mfa.unenroll({ factorId: factor.id });
-            } catch (directError) {
-              console.error('Direct unenroll also failed:', directError);
-            }
-            // Continue to database cleanup even if unenroll fails
-          }
+          await supabase.auth.mfa.unenroll({ factorId: factor.id });
         }
       }
 
-      // Delete the MFA record from database
+      // Update database
       const { error: dbError } = await supabase
         .from('user_mfa')
-        .delete()
+        .update({
+          is_enabled: false,
+          backup_codes: null,
+        })
         .eq('user_id', user.id);
 
       if (dbError) throw dbError;

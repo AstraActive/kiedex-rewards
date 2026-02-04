@@ -4,8 +4,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { isAllowedEmailDomain, EMAIL_DOMAIN_ERROR_MESSAGE } from '@/lib/emailValidation';
 import { toast } from 'sonner';
 import { AuthContext } from './AuthContextDefinition';
-import { MFAVerificationDialog } from '@/components/auth/MFAVerificationDialog';
-import { TOTP } from 'otplib';
 
 // Re-export the type for consumers
 export type { AuthContextType } from './AuthContextDefinition';
@@ -154,110 +152,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
-  const [pendingMFAUser, setPendingMFAUser] = useState<User | null>(null);
-  const [showMFADialog, setShowMFADialog] = useState(false);
-  const [isVerifyingMFA, setIsVerifyingMFA] = useState(false);
   const processedUsersRef = useRef<Set<string>>(new Set());
 
-  // Check if user has MFA enabled
-  const checkMFAStatus = async (userId: string): Promise<boolean> => {
-    try {
-      const { data, error } = await supabase
-        .from('user_mfa')
-        .select('is_enabled, secret')
-        .eq('user_id', userId)
-        .maybeSingle();
-
-      if (error || !data) return false;
-      return data.is_enabled === true; // Explicitly check for true
-    } catch {
-      return false;
-    }
-  };
-
-
-  // Verify MFA code
-  const verifyMFACode = async (code: string) => {
-    if (!pendingMFAUser) return;
-
-    setIsVerifyingMFA(true);
-    try {
-      // Get user's MFA secret
-      const { data: mfaData, error: mfaError } = await supabase
-        .from('user_mfa')
-        .select('secret, is_enabled')
-        .eq('user_id', pendingMFAUser.id)
-        .single();
-
-      if (mfaError || !mfaData || !mfaData.is_enabled) {
-        throw new Error('MFA not configured');
-      }
-
-      // Verify TOTP code
-      const totp = new TOTP({ secret: mfaData.secret });
-      const isValid = totp.verify(code);
-
-      if (!isValid) {
-        toast.error('Invalid verification code');
-        setIsVerifyingMFA(false);
-        return;
-      }
-
-      // Update last used timestamp
-      await supabase
-        .from('user_mfa')
-        .update({ last_used_at: new Date().toISOString() })
-        .eq('user_id', pendingMFAUser.id);
-
-      // MFA verified - complete login
-      setUser(pendingMFAUser);
-      setPendingMFAUser(null);
-      setShowMFADialog(false);
-      toast.success('Login successful!');
-
-      // Process referral code if needed
-      const userId = pendingMFAUser.id;
-      if (!processedUsersRef.current.has(userId)) {
-        processedUsersRef.current.add(userId);
-        setTimeout(() => {
-          processReferralCode(userId);
-        }, 1000);
-      }
-    } catch (error) {
-      console.error('MFA verification error:', error);
-      toast.error('Verification failed. Please try again.');
-    } finally {
-      setIsVerifyingMFA(false);
-    }
-  };
-
-  // Handle MFA dialog cancellation
-  const handleMFACancel = async () => {
-    setShowMFADialog(false);
-    setPendingMFAUser(null);
-    // Sign out the pending user
-    await supabase.auth.signOut();
-    toast.info('Login cancelled');
-  };
-
   useEffect(() => {
-    // Safety timeout - force loading to false after 3 seconds
-    const loadingTimeout = setTimeout(() => {
-      console.log('[Auth] Loading timeout - forcing loading to false');
-      setLoading(false);
-    }, 3000);
-
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('[Auth] Event:', event, 'Session:', !!session);
-        
-        // Skip INITIAL_SESSION - let getSession() handle initial state
-        if (event === 'INITIAL_SESSION') {
-          console.log('[Auth] Skipping INITIAL_SESSION - handled by getSession()');
-          return;
-        }
-        
         // Validate email domain for Gmail-only access
         if (session?.user?.email && !isAllowedEmailDomain(session.user.email)) {
           // Blocked domain - sign out immediately
@@ -272,22 +172,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         
         setSession(session);
-        
-        // Only check MFA on SIGNED_IN events (fresh Google login)
-        // Don't check on INITIAL_SESSION, TOKEN_REFRESHED, etc.
-        if (event === 'SIGNED_IN' && session?.user) {
-          const hasMFA = await checkMFAStatus(session.user.id);
-          
-          if (hasMFA) {
-            // MFA enabled - show verification dialog
-            setPendingMFAUser(session.user);
-            setShowMFADialog(true);
-            setLoading(false);
-            return; // Don't set user yet
-          }
-        }
-        
-        // For all other events or no MFA - proceed normally
         setUser(session?.user ?? null);
         setLoading(false);
 
@@ -322,15 +206,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
-    }).catch((error) => {
-      console.error('[Auth] Error getting session:', error);
-      setLoading(false); // Always stop loading even on error
     });
 
-    return () => {
-      clearTimeout(loadingTimeout);
-      subscription.unsubscribe();
-    };
+    return () => subscription.unsubscribe();
   }, []);
 
   const signInWithGoogle = async () => {
@@ -357,12 +235,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider value={{ user, session, loading, signInWithGoogle, signOut }}>
       {children}
-      <MFAVerificationDialog
-        open={showMFADialog}
-        onVerify={verifyMFACode}
-        onCancel={handleMFACancel}
-        isVerifying={isVerifyingMFA}
-      />
     </AuthContext.Provider>
   );
 }
