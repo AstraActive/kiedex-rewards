@@ -70,6 +70,16 @@ export function TradingViewChart({
   const displayName = binanceService.SYMBOL_NAMES[symbol] || symbol;
   const decimals = getPriceDecimals(symbol);
 
+  // Emergency fix: Force loading to false after 3 seconds if data doesn't load
+  useEffect(() => {
+    const emergencyTimeout = setTimeout(() => {
+      console.warn('EMERGENCY: Forcing chart loading state to false after 3 seconds');
+      setIsLoading(false);
+    }, 3000);
+
+    return () => clearTimeout(emergencyTimeout);
+  }, []);
+
   // Convert kline to chart format
   const toChartData = useCallback((kline: KlineData): CandlestickData<Time> | LineData<Time> => {
     const time = (kline.time / 1000) as Time;
