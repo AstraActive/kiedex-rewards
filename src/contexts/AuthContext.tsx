@@ -252,6 +252,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       async (event, session) => {
         console.log('[Auth] Event:', event, 'Session:', !!session);
         
+        // Skip INITIAL_SESSION - let getSession() handle initial state
+        if (event === 'INITIAL_SESSION') {
+          console.log('[Auth] Skipping INITIAL_SESSION - handled by getSession()');
+          return;
+        }
+        
         // Validate email domain for Gmail-only access
         if (session?.user?.email && !isAllowedEmailDomain(session.user.email)) {
           // Blocked domain - sign out immediately
