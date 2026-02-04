@@ -5,7 +5,7 @@ import { isAllowedEmailDomain, EMAIL_DOMAIN_ERROR_MESSAGE } from '@/lib/emailVal
 import { toast } from 'sonner';
 import { AuthContext } from './AuthContextDefinition';
 import { MFAVerificationDialog } from '@/components/auth/MFAVerificationDialog';
-import { authenticator } from 'otplib';
+import { TOTP } from 'otplib';
 
 // Re-export the type for consumers
 export type { AuthContextType } from './AuthContextDefinition';
@@ -193,7 +193,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Verify TOTP code
-      const isValid = authenticator.verify({
+      const totp = new TOTP();
+      const isValid = totp.verify({
         token: code,
         secret: mfaData.secret,
       });
