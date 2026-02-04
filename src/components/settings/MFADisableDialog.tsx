@@ -8,15 +8,18 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, AlertTriangle } from 'lucide-react';
+import { Loader2, AlertTriangle, ShieldAlert } from 'lucide-react';
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from '@/components/ui/input-otp';
 
 interface MFADisableDialogProps {
   open: boolean;
   onClose: () => void;
-  onDisable: (password: string) => void;
+  onDisable: (code: string) => void;
   isDisabling: boolean;
 }
 
@@ -26,17 +29,17 @@ export function MFADisableDialog({
   onDisable,
   isDisabling,
 }: MFADisableDialogProps) {
-  const [password, setPassword] = useState('');
+  const [code, setCode] = useState('');
 
   const handleDisable = () => {
-    if (password) {
-      onDisable(password);
-      setPassword('');
+    if (code.length === 6) {
+      onDisable(code);
+      setCode('');
     }
   };
 
   const handleClose = () => {
-    setPassword('');
+    setCode('');
     onClose();
   };
 
@@ -49,7 +52,7 @@ export function MFADisableDialog({
             Disable Two-Factor Authentication
           </DialogTitle>
           <DialogDescription>
-            This will make your account less secure. Enter your password to confirm.
+            This will make your account less secure. Enter your verification code to confirm.
           </DialogDescription>
         </DialogHeader>
 
@@ -61,17 +64,38 @@ export function MFADisableDialog({
           </Alert>
 
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              type="password"
-              placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleDisable()}
-              autoFocus
-            />
+            <label className="text-sm font-medium">Verification Code</label>
+            <div className="flex justify-center">
+              <InputOTP
+                maxLength={6}
+                value={code}
+                onChange={setCode}
+                onComplete={handleDisable}
+                autoFocus
+              >
+                <InputOTPGroup>
+                  <InputOTPSlot index={0} />
+                  <InputOTPSlot index={1} />
+                  <InputOTPSlot index={2} />
+                  <InputOTPSlot index={3} />
+                  <InputOTPSlot index={4} />
+                  <InputOTPSlot index={5} />
+                </InputOTPGroup>
+              </InputOTP>
+            </div>
+            <p className="text-xs text-muted-foreground text-center">
+              Enter the 6-digit code from your authenticator app
+            </p>
           </div>
+
+          <Alert>
+            <ShieldAlert className="h-4 w-4" />
+            <AlertDescription className="text-xs">
+              <strong>Lost access to your authenticator?</strong>
+              <br />
+              Please contact our support center for assistance in recovering your account.
+            </AlertDescription>
+          </Alert>
         </div>
 
         <DialogFooter>
@@ -81,7 +105,7 @@ export function MFADisableDialog({
           <Button
             variant="destructive"
             onClick={handleDisable}
-            disabled={!password || isDisabling}
+            disabled={code.length !== 6 || isDisabling}
           >
             {isDisabling ? (
               <>

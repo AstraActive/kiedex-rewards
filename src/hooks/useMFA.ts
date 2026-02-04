@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { TOTP } from 'otplib';
 
 interface MFAStatus {
   id: string;
@@ -148,16 +149,27 @@ export function useMFA() {
 
   // Disable MFA
   const disableMutation = useMutation({
-    mutationFn: async (password: string) => {
-      if (!user?.id || !user?.email) throw new Error('Not authenticated');
+    mutationFn: async (code: string) => {
+      if (!user?.id) throw new Error('Not authenticated');
 
-      // Verify password before disabling
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: user.email,
-        password,
-      });
+      // Get user's MFA secret to verify the code
+      const { data: mfaData, error: mfaError } = await supabase
+        .from('user_mfa')
+        .select('secret, is_enabled')
+        .eq('user_id', user.id)
+        .single();
 
-      if (signInError) throw new Error('Invalid password');
+      if (mfaError || !mfaData || !mfaData.is_enabled) {
+        throw new Error('MFA not configured');
+      }
+
+      // Verify TOTP code before disabling
+      const totp = new TOTP({ secret: mfaData.secret });
+      const isValid = totp.verify(code);
+
+      if (!isValid) {
+        throw new Error('Invalid verification code');
+      }
 
       // Get all MFA factors
       const { data: factors } = await supabase.auth.mfa.listFactors();
@@ -175,6 +187,7 @@ export function useMFA() {
         .update({
           is_enabled: false,
           backup_codes: null,
+          secret: '',
         })
         .eq('user_id', user.id);
 
