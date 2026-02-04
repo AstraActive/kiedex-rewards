@@ -250,10 +250,18 @@ class BinanceService {
 
   async fetchKlines(symbol: string, interval: string, limit = 100): Promise<KlineData[]> {
     try {
-      const response = await fetch(
-        `${this.REST_BASE_URL}/klines?symbol=${symbol.toUpperCase()}&interval=${interval}&limit=${limit}`
-      );
+      const url = `${this.REST_BASE_URL}/klines?symbol=${symbol.toUpperCase()}&interval=${interval}&limit=${limit}`;
+      console.log('Fetching klines from:', url);
+      
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status} ${response.statusText}`);
+      }
+      
       const data = await response.json();
+      console.log(`Received ${data.length} klines from Binance API`);
+      
       return data.map((k: number[]) => ({
         time: k[0],
         open: parseFloat(String(k[1])),
@@ -264,6 +272,7 @@ class BinanceService {
       }));
     } catch (error) {
       console.error('Error fetching klines:', error);
+      console.error('Failed URL:', `${this.REST_BASE_URL}/klines?symbol=${symbol.toUpperCase()}&interval=${interval}&limit=${limit}`);
       return [];
     }
   }

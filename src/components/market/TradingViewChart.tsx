@@ -217,6 +217,12 @@ export function TradingViewChart({
     setIsLoading(true);
     setWsConnected(false);
 
+    // Safety timeout - if data doesn't load in 10 seconds, stop showing loading
+    const loadingTimeout = setTimeout(() => {
+      console.warn('Chart loading timeout - hiding loading indicator');
+      setIsLoading(false);
+    }, 10000);
+
     // Cleanup previous subscriptions
     if (wsUnsubscribeRef.current) {
       wsUnsubscribeRef.current();
@@ -228,9 +234,13 @@ export function TradingViewChart({
     }
 
     // Fetch historical data (500 candles)
-    binanceService.fetchKlines(symbol, timeframe, 500)
-      .then(data => {
+    const fetchData = async () => {
+      try {
+        console.log(`Fetching ${symbol} ${timeframe} klines...`);
+        const data = await binanceService.fetchKlines(symbol, timeframe, 500);
         console.log(`Fetched ${data.length} klines for ${symbol}`);
+        
+        clearTimeout(loadingTimeout); // Clear timeout on success
         klinesRef.current = data;
         
         if (seriesRef.current && data.length > 0) {
@@ -248,13 +258,18 @@ export function TradingViewChart({
             chartRef.current.timeScale().fitContent();
           }
         }
-        setIsLoading(false);
+        
         setWsConnected(true);
-      })
-      .catch((err) => {
-        console.error('Failed to fetch klines:', err);
         setIsLoading(false);
-      });
+      } catch (err) {
+        console.error('Failed to fetch klines:', err);
+        console.error('Error details:', err instanceof Error ? err.message : String(err));
+        // Still set loading to false even on error
+        setIsLoading(false);
+      }
+    };
+    
+    fetchData();
 
     // Subscribe to live updates with throttling
     const THROTTLE_MS = 200; // Max 5 updates/sec
@@ -314,6 +329,7 @@ export function TradingViewChart({
     }, 3000);
 
     return () => {
+      clearTimeout(loadingTimeout);
       if (wsUnsubscribeRef.current) {
         wsUnsubscribeRef.current();
         wsUnsubscribeRef.current = null;
