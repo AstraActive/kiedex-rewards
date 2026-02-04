@@ -22,18 +22,30 @@ export default function Login() {
   // Redirect to dashboard after login, or to the originally requested page
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard';
 
+  // Redirect authenticated users without MFA to dashboard
+  useEffect(() => {
+    if (!loading && user && !mfaPending && !showMFADialog) {
+      console.log('[Login] User logged in, checking MFA status...');
+      // Only navigate if we haven't checked MFA yet
+      // The MFA check effect will handle navigation
+    }
+  }, [user, loading, mfaPending, showMFADialog]);
+
   // Check if MFA is enabled after successful login
   useEffect(() => {
     const handleMFACheck = async () => {
       // Only check once per session using ref
       if (!loading && user && !mfaCheckedRef.current) {
         mfaCheckedRef.current = true;
+        console.log('[Login] Checking MFA status for user:', user.id);
         const mfaEnabled = await checkMFAStatus(user.id);
         
         if (mfaEnabled) {
+          console.log('[Login] MFA is enabled, showing dialog');
           setShowMFADialog(true);
           setMfaPending(true);
         } else {
+          console.log('[Login] MFA not enabled, navigating to:', from);
           navigate(from, { replace: true });
         }
       }
@@ -45,7 +57,9 @@ export default function Login() {
   // Reset ref when user changes or logs out
   useEffect(() => {
     if (!user) {
+      console.log('[Login] User logged out, resetting MFA check ref');
       mfaCheckedRef.current = false;
+      setShowMFADialog(false);
     }
   }, [user]);
 
