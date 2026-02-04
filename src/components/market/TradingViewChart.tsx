@@ -62,7 +62,7 @@ export function TradingViewChart({
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
   
   const [isLoading, setIsLoading] = useState(true);
-  const [wsConnected, setWsConnected] = useState(false);
+  const [wsConnected, setWsConnected] = useState(false); // Keep for UI indicator
   const [currentPrice, setCurrentPrice] = useState<number | null>(null);
   const [priceChange, setPriceChange] = useState<number>(0);
   const [ohlc, setOhlc] = useState<{ o: number; h: number; l: number; c: number } | null>(null);
@@ -225,7 +225,7 @@ export function TradingViewChart({
     if (!chartRef.current) return;
 
     setIsLoading(true);
-    setWsConnected(false);
+    let isWsConnected = false; // Use local variable instead of state
 
     // Safety timeout - if data doesn't load in 10 seconds, stop showing loading
     const loadingTimeout = setTimeout(() => {
@@ -269,7 +269,8 @@ export function TradingViewChart({
           }
         }
         
-        setWsConnected(true);
+        isWsConnected = true; // Mark as connected locally
+        setWsConnected(true); // Update UI indicator
         setIsLoading(false);
       } catch (err) {
         console.error('Failed to fetch klines:', err);
@@ -289,7 +290,8 @@ export function TradingViewChart({
       if (now - lastUpdateRef.current < THROTTLE_MS) return;
       lastUpdateRef.current = now;
 
-      setWsConnected(true);
+      isWsConnected = true; // Mark as connected locally
+      setWsConnected(true); // Update UI indicator
       setCurrentPrice(newKline.close);
 
       const klines = klinesRef.current;
@@ -322,7 +324,7 @@ export function TradingViewChart({
 
     // Fallback polling every 3s if WS disconnects
     fallbackIntervalRef.current = setInterval(async () => {
-      if (!wsConnected && seriesRef.current) {
+      if (!isWsConnected && seriesRef.current) {
         const latestData = await binanceService.fetchKlines(symbol, timeframe, 1);
         if (latestData.length > 0) {
           const newKline = latestData[0];
@@ -349,7 +351,7 @@ export function TradingViewChart({
         fallbackIntervalRef.current = null;
       }
     };
-  }, [symbol, timeframe, toChartData, wsConnected]);
+  }, [symbol, timeframe, toChartData]); // Removed wsConnected - it was causing infinite loop!
 
   const formatPrice = (price: number) => {
     return binanceService.formatPrice(price, symbol);
