@@ -47,6 +47,16 @@ export function useMFA() {
     mutationFn: async () => {
       if (!user?.id) throw new Error('Not authenticated');
 
+      // First, check if any factors already exist and clean them up
+      const { data: existingFactors } = await supabase.auth.mfa.listFactors();
+      
+      if (existingFactors?.totp && existingFactors.totp.length > 0) {
+        // Unenroll existing factors
+        for (const factor of existingFactors.totp) {
+          await supabase.auth.mfa.unenroll({ factorId: factor.id });
+        }
+      }
+
       // Enroll using Supabase Auth MFA
       const { data, error } = await supabase.auth.mfa.enroll({
         factorType: 'totp',
