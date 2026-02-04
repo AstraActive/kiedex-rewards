@@ -17,6 +17,7 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+    dedupe: ['react', 'react-dom'], // Ensure only one instance of React
   },
   build: {
     // Optimize chunk splitting for better caching and parallel loading
@@ -24,10 +25,9 @@ export default defineConfig(({ mode }) => ({
       output: {
         manualChunks: {
           // Separate vendor chunks for better caching
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          'react-vendor': ['react', 'react-dom', 'react-router-dom', '@tanstack/react-query'],
           'ui-vendor': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-toast'],
           'wallet-vendor': ['wagmi', '@rainbow-me/rainbowkit', '@metamask/sdk'],
-          'query-vendor': ['@tanstack/react-query'],
           'chart-vendor': ['lightweight-charts'],
         },
       },

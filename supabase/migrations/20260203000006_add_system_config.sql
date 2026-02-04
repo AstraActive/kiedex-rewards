@@ -89,6 +89,6 @@ COMMENT ON FUNCTION update_config IS
 -- Create index for faster lookups
 CREATE INDEX IF NOT EXISTS idx_system_config_key ON public.system_config(key);
 
-RAISE NOTICE 'System config table created with default values';
-RAISE NOTICE 'Use get_config(''daily_pool_kdx'') to fetch pool size';
-RAISE NOTICE 'Use update_config(''daily_pool_kdx'', ''15000'') to change pool size (admin only)';
+-- Success message will be in migration logs
+-- Use get_config('daily_pool_kdx') to fetch pool size
+-- Use update_config('daily_pool_kdx', '15000') to change pool size (admin only)
