@@ -27,19 +27,22 @@ export default function Login() {
         // Check if MFA is enabled for this user
         const mfaEnabled = await checkMFAStatus(user.id);
         
-        if (mfaEnabled && !mfaPending) {
+        if (mfaEnabled) {
           // MFA is enabled, show verification dialog
-          setShowMFADialog(true);
-          setMfaPending(true);
-        } else if (!mfaEnabled || mfaPending === false) {
-          // MFA not enabled or already verified, proceed to dashboard
+          if (!showMFADialog) {
+            setShowMFADialog(true);
+            setMfaPending(true);
+          }
+        } else {
+          // MFA not enabled, proceed to dashboard
+          setMfaPending(false);
           navigate(from, { replace: true });
         }
       }
     };
 
     handleMFACheck();
-  }, [user, loading, navigate, from, mfaPending, checkMFAStatus, setMfaPending]);
+  }, [user, loading, navigate, from, checkMFAStatus, setMfaPending, showMFADialog]);
 
   const handleMFAVerify = async (code: string, isBackupCode?: boolean) => {
     const result = await verifyMFACode(code, isBackupCode);
