@@ -53,15 +53,18 @@ export function useMFA() {
       if (existingFactors?.totp && existingFactors.totp.length > 0) {
         // Only try to unenroll unverified factors
         for (const factor of existingFactors.totp) {
-          // Only unenroll if factor is not verified (status: 'unverified')
-          if (factor.status === 'unverified') {
-            try {
-              await supabase.auth.mfa.unenroll({ factorId: factor.id });
-            } catch (error) {
-              console.warn('Failed to unenroll unverified factor:', error);
-            }
-          } else {
-            // If there's already a verified factor, user should disable it first
+          // Check if factor is verified - verified factors need to be disabled first
+          if (factor.factor_type === 'totp' && factor.friendly_name === 'KieDex Authenticator') {
+            // If there's already a factor with same name, user should disable it first
+            throw new Error('You already have 2FA enabled. Please disable it first before setting up a new one.');
+          }
+          
+          // Try to clean up any orphaned factors
+          try {
+            await supabase.auth.mfa.unenroll({ factorId: factor.id });
+          } catch (error) {
+            console.warn('Failed to unenroll factor:', error);
+            // If unenroll fails, it's likely verified, so throw error
             throw new Error('You already have 2FA enabled. Please disable it first before setting up a new one.');
           }
         }
@@ -199,20 +202,18 @@ export function useMFA() {
       if (factors?.totp && factors.totp.length > 0) {
         for (const factor of factors.totp) {
           try {
-            // For verified factors, we need to create a challenge first
-            if (factor.status === 'verified') {
-              const { data: challengeData } = await supabase.auth.mfa.challenge({
+            // Try to create a challenge and verify before unenrolling
+            const { data: challengeData } = await supabase.auth.mfa.challenge({
+              factorId: factor.id,
+            });
+            
+            if (challengeData) {
+              // Verify with the code user provided
+              await supabase.auth.mfa.verify({
                 factorId: factor.id,
+                challengeId: challengeData.id,
+                code: code,
               });
-              
-              if (challengeData) {
-                // Verify with the code user provided
-                await supabase.auth.mfa.verify({
-                  factorId: factor.id,
-                  challengeId: challengeData.id,
-                  code: code,
-                });
-              }
             }
             
             // Now unenroll the factor
@@ -226,6 +227,12 @@ export function useMFA() {
             }
           } catch (error) {
             console.error('Error during factor unenrollment:', error);
+            // Try direct unenroll for unverified factors
+            try {
+              await supabase.auth.mfa.unenroll({ factorId: factor.id });
+            } catch (directError) {
+              console.error('Direct unenroll also failed:', directError);
+            }
             // Continue to database cleanup even if unenroll fails
           }
         }
