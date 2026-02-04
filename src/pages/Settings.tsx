@@ -55,11 +55,9 @@ function SettingsContent() {
   };
 
   const handleVerifyMFA = (args: { factorId: string; code: string; backupCodes: string[] }) => {
-    verify(args, {
-      onSuccess: () => {
-        setShowMFASetup(false);
-      },
-    });
+    // Don't close dialog here - let the user see backup codes first
+    // Dialog will close when user clicks "Finish Setup" button
+    verify(args);
   };
 
   const handleDisableMFA = (password: string) => {
