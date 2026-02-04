@@ -10,7 +10,7 @@ interface RequireAuthProps {
 }
 
 export function RequireAuth({ children }: RequireAuthProps) {
-  const { user, loading, signOut } = useAuth();
+  const { user, loading, signOut, mfaPending } = useAuth();
   const location = useLocation();
 
   // Secondary email domain check as safeguard
@@ -37,6 +37,11 @@ export function RequireAuth({ children }: RequireAuthProps) {
   }
 
   if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // Redirect to login if MFA verification is pending
+  if (mfaPending) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 

@@ -6,22 +6,63 @@ import { useAuth } from '@/hooks/useAuth';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { MFAVerificationDialog } from '@/components/auth/MFAVerificationDialog';
+import { useMFAVerification } from '@/hooks/useMFAVerification';
 
 export default function Login() {
-  const { user, loading, signInWithGoogle } = useAuth();
+  const { user, loading, signInWithGoogle, mfaPending, setMfaPending, signOut } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
   const [isSigningIn, setIsSigningIn] = useState(false);
+  const [showMFADialog, setShowMFADialog] = useState(false);
+  const { checkMFAStatus, verifyMFACode, isVerifying, verificationError } = useMFAVerification();
 
   // Redirect to dashboard after login, or to the originally requested page
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard';
 
   useEffect(() => {
-    if (!loading && user) {
+    const handleMFACheck = async () => {
+      if (!loading && user) {
+        // Check if MFA is enabled for this user
+        const mfaEnabled = await checkMFAStatus(user.id);
+        
+        if (mfaEnabled && !mfaPending) {
+          // MFA is enabled, show verification dialog
+          setShowMFADialog(true);
+          setMfaPending(true);
+        } else if (!mfaEnabled || mfaPending === false) {
+          // MFA not enabled or already verified, proceed to dashboard
+          navigate(from, { replace: true });
+        }
+      }
+    };
+
+    handleMFACheck();
+  }, [user, loading, navigate, from, mfaPending, checkMFAStatus, setMfaPending]);
+
+  const handleMFAVerify = async (code: string, isBackupCode?: boolean) => {
+    const result = await verifyMFACode(code, isBackupCode);
+    
+    if (result.success) {
+      setShowMFADialog(false);
+      setMfaPending(false);
+      // Navigate to dashboard after successful MFA verification
       navigate(from, { replace: true });
     }
-  }, [user, loading, navigate, from]);
+  };
+
+  const handleMFACancel = async () => {
+    setShowMFADialog(false);
+    setMfaPending(false);
+    // Sign out if user cancels MFA verification
+    await signOut();
+    toast({
+      title: 'Sign in cancelled',
+      description: 'MFA verification is required to continue.',
+      variant: 'destructive',
+    });
+  };
 
   const handleGoogleSignIn = async () => {
     setIsSigningIn(true);
@@ -104,6 +145,15 @@ export default function Login() {
           </CardContent>
         </Card>
       </div>
+
+      {/* MFA Verification Dialog */}
+      <MFAVerificationDialog
+        open={showMFADialog}
+        onVerify={handleMFAVerify}
+        onCancel={handleMFACancel}
+        isVerifying={isVerifying}
+        error={verificationError}
+      />
     </AppLayout>
   );
 }
