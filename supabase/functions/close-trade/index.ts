@@ -289,6 +289,43 @@ Deno.serve(async (req) => {
       throw new Error('Failed to update balance');
     }
 
+    // Update daily tasks progress
+    try {
+      const today = closedAt.toISOString().split('T')[0];
+      
+      // Task 1: Complete 3 trades today (trade_3)
+      await supabase.rpc('increment_task_progress', {
+        p_user_id: user.id,
+        p_task_id: 'trade_3',
+        p_date: today,
+        p_increment: 1,
+        p_target: 3,
+      });
+
+      // Task 2: Trade $1,000 volume today (volume_1000)
+      await supabase.rpc('increment_task_progress', {
+        p_user_id: user.id,
+        p_task_id: 'volume_1000',
+        p_date: today,
+        p_increment: positionSizeUsdt,
+        p_target: 1000,
+      });
+
+      // Task 3: Win 2 profitable trades (win_2)
+      if (realizedPnl > 0) {
+        await supabase.rpc('increment_task_progress', {
+          p_user_id: user.id,
+          p_task_id: 'win_2',
+          p_date: today,
+          p_increment: 1,
+          p_target: 2,
+        });
+      }
+    } catch (taskError) {
+      // Don't fail the trade if task tracking fails
+      console.error('Task progress update failed:', taskError);
+    }
+
     console.log(`Trade closed: ${position.side.toUpperCase()} ${position.symbol} | Entry: ${entryPriceExecuted} | Exit: ${exitPriceExecuted} | PnL: ${realizedPnl.toFixed(2)} | Open Time: ${openTimeSeconds}s | Counted Volume: ${safeCountedVolume.toFixed(2)} (${finalReason || 'valid'}) | Wallet: ${profile.linked_wallet_address}`);
 
     return new Response(
