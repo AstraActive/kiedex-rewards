@@ -166,7 +166,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .from('user_mfa')
         .select('is_enabled, secret')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
 
       if (error || !data) return false;
       return data.is_enabled;
