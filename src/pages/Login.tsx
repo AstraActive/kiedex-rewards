@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,29 +17,37 @@ export default function Login() {
   const [isSigningIn, setIsSigningIn] = useState(false);
   const [showMFADialog, setShowMFADialog] = useState(false);
   const { checkMFAStatus, verifyMFACode, isVerifying, verificationError } = useMFAVerification();
+  const mfaCheckedRef = useRef(false);
 
   // Redirect to dashboard after login, or to the originally requested page
   const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/dashboard';
 
+  // Check if MFA is enabled after successful login
   useEffect(() => {
     const handleMFACheck = async () => {
-      if (!loading && user && !showMFADialog && !mfaPending) {
-        // Check if MFA is enabled for this user
+      // Only check once per session using ref
+      if (!loading && user && !mfaCheckedRef.current) {
+        mfaCheckedRef.current = true;
         const mfaEnabled = await checkMFAStatus(user.id);
         
         if (mfaEnabled) {
-          // MFA is enabled, show verification dialog
           setShowMFADialog(true);
           setMfaPending(true);
         } else {
-          // MFA not enabled, proceed to dashboard
           navigate(from, { replace: true });
         }
       }
     };
 
     handleMFACheck();
-  }, [user, loading, navigate, from, checkMFAStatus, setMfaPending, showMFADialog, mfaPending]);
+  }, [user, loading, navigate, from, checkMFAStatus, setMfaPending]);
+
+  // Reset ref when user changes or logs out
+  useEffect(() => {
+    if (!user) {
+      mfaCheckedRef.current = false;
+    }
+  }, [user]);
 
   const handleMFAVerify = async (code: string, isBackupCode?: boolean) => {
     const result = await verifyMFACode(code, isBackupCode);
