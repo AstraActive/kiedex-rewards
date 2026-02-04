@@ -145,25 +145,35 @@ export function useMFA() {
 
   // Disable MFA
   const disableMutation = useMutation({
-    mutationFn: async (password: string) => {
-      if (!user?.id || !user?.email) throw new Error('Not authenticated');
-
-      // Verify password before disabling
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: user.email,
-        password,
-      });
-
-      if (signInError) throw new Error('Invalid password');
+    mutationFn: async (code: string) => {
+      if (!user?.id) throw new Error('Not authenticated');
 
       // Get all MFA factors
       const { data: factors } = await supabase.auth.mfa.listFactors();
       
+      if (!factors?.totp || factors.totp.length === 0) {
+        throw new Error('No MFA factors found');
+      }
+
+      // Verify the TOTP code before disabling
+      const factor = factors.totp[0];
+      const { data: challengeData, error: challengeError } = await supabase.auth.mfa.challenge({
+        factorId: factor.id,
+      });
+
+      if (challengeError) throw challengeError;
+
+      const { error: verifyError } = await supabase.auth.mfa.verify({
+        factorId: factor.id,
+        challengeId: challengeData.id,
+        code,
+      });
+
+      if (verifyError) throw new Error('Invalid verification code');
+
       // Unenroll all factors
-      if (factors?.totp && factors.totp.length > 0) {
-        for (const factor of factors.totp) {
-          await supabase.auth.mfa.unenroll({ factorId: factor.id });
-        }
+      for (const f of factors.totp) {
+        await supabase.auth.mfa.unenroll({ factorId: f.id });
       }
 
       // Update database

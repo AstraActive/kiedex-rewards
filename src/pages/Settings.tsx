@@ -60,8 +60,8 @@ function SettingsContent() {
     verify(args);
   };
 
-  const handleDisableMFA = (password: string) => {
-    disable(password, {
+  const handleDisableMFA = (code: string) => {
+    disable(code, {
       onSuccess: () => {
         setShowMFADisable(false);
       },
