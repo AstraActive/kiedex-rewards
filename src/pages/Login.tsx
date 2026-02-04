@@ -23,26 +23,23 @@ export default function Login() {
 
   useEffect(() => {
     const handleMFACheck = async () => {
-      if (!loading && user) {
+      if (!loading && user && !showMFADialog && !mfaPending) {
         // Check if MFA is enabled for this user
         const mfaEnabled = await checkMFAStatus(user.id);
         
         if (mfaEnabled) {
           // MFA is enabled, show verification dialog
-          if (!showMFADialog) {
-            setShowMFADialog(true);
-            setMfaPending(true);
-          }
+          setShowMFADialog(true);
+          setMfaPending(true);
         } else {
           // MFA not enabled, proceed to dashboard
-          setMfaPending(false);
           navigate(from, { replace: true });
         }
       }
     };
 
     handleMFACheck();
-  }, [user, loading, navigate, from, checkMFAStatus, setMfaPending, showMFADialog]);
+  }, [user, loading, navigate, from, checkMFAStatus, setMfaPending, showMFADialog, mfaPending]);
 
   const handleMFAVerify = async (code: string, isBackupCode?: boolean) => {
     const result = await verifyMFACode(code, isBackupCode);
