@@ -169,7 +169,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         .maybeSingle();
 
       if (error || !data) return false;
-      return data.is_enabled;
+      return data.is_enabled === true; // Explicitly check for true
     } catch {
       return false;
     }
