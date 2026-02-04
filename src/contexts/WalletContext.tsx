@@ -60,8 +60,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     // Disconnect wagmi
     disconnect();
     
-    // Clear all wallet storage (WalletConnect, wagmi)
-    clearWalletStorage();
+    // Clear all wallet storage including persistent state (full reset)
+    clearWalletStorage(true);
     
     // Clear KieDex session
     if (user?.id) {

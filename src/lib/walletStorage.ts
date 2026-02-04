@@ -12,9 +12,17 @@ const STORAGE_KEYS = [
   'walletconnect',
 ];
 
-export function clearWalletStorage(): void {
+// Keys to clear only when fully resetting (not on timeout)
+const PERSISTENT_KEYS = ['wagmi.store', 'wagmi.recentConnectorId'];
+
+export function clearWalletStorage(fullReset = false): void {
   // Clear localStorage
   STORAGE_KEYS.forEach(key => {
+    // Skip persistent keys unless doing a full reset
+    if (!fullReset && PERSISTENT_KEYS.includes(key)) {
+      return;
+    }
+    
     try {
       // Match exact keys and prefix patterns
       Object.keys(localStorage).forEach(k => {

@@ -37,9 +37,10 @@ export function useConnectionTimeout(): UseConnectionTimeoutReturn {
       if (!isConnected) {
         setHasTimedOut(true);
         setFailureCount(prev => prev + 1);
-        // Auto-clear stale sessions on timeout
-        console.log('Connection timeout - clearing stale sessions');
-        clearWalletStorage();
+        // Clear only WalletConnect sessions on timeout, but preserve wagmi store
+        // so it doesn't ask to reconnect again
+        console.log('Connection timeout - clearing stale WalletConnect sessions');
+        clearWalletStorage(false); // false = don't clear persistent keys
       }
     }, CONNECTION_TIMEOUT_MS);
   }, [clearTimeoutRef, isConnected]);
@@ -48,8 +49,9 @@ export function useConnectionTimeout(): UseConnectionTimeoutReturn {
     setIsConnecting(false);
     setHasTimedOut(false);
     clearTimeoutRef();
-    // Clear stale sessions on cancel to prevent stuck states
-    clearWalletStorage();
+    // Don't clear wagmi store on cancel - user might just be navigating away
+    // Only clear WalletConnect sessions to prevent stuck states
+    clearWalletStorage(false); // false = preserve persistent connection state
   }, [clearTimeoutRef]);
 
   const retryConnection = useCallback(() => {
@@ -62,7 +64,7 @@ export function useConnectionTimeout(): UseConnectionTimeoutReturn {
     setHasTimedOut(false);
     setFailureCount(0);
     clearTimeoutRef();
-    clearWalletStorage();
+    clearWalletStorage(true); // true = full reset including persistent state
     console.log('Wallet cache cleared and connection reset');
   }, [clearTimeoutRef]);
 
