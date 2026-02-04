@@ -220,8 +220,11 @@ Deno.serve(async (req) => {
       throw new Error('Failed to update counted volume');
     }
 
-    const { counted_volume: countedVolume, capped, reason: capReason } = volumeResult;
+    const { counted_volume: countedVolume, capped, reason: capReason } = volumeResult || {};
     const finalReason = spamReason || (capped ? capReason : null);
+    
+    // Fallback if RPC didn't return expected data
+    const safeCountedVolume = countedVolume ?? 0;
 
     // Insert into trades_history
     const { error: historyError } = await supabase
@@ -244,7 +247,7 @@ Deno.serve(async (req) => {
         closed_at: closedAt.toISOString(),
         slippage_rate: SLIPPAGE_RATE,
         open_time_seconds: openTimeSeconds,
-        counted_volume: countedVolume,
+        counted_volume: safeCountedVolume,
         counted_volume_reason: finalReason,
       });
 
@@ -286,7 +289,7 @@ Deno.serve(async (req) => {
       throw new Error('Failed to update balance');
     }
 
-    console.log(`Trade closed: ${position.side.toUpperCase()} ${position.symbol} | Entry: ${entryPriceExecuted} | Exit: ${exitPriceExecuted} | PnL: ${realizedPnl.toFixed(2)} | Open Time: ${openTimeSeconds}s | Counted Volume: ${countedVolume.toFixed(2)} (${finalReason || 'valid'}) | Wallet: ${profile.linked_wallet_address}`);
+    console.log(`Trade closed: ${position.side.toUpperCase()} ${position.symbol} | Entry: ${entryPriceExecuted} | Exit: ${exitPriceExecuted} | PnL: ${realizedPnl.toFixed(2)} | Open Time: ${openTimeSeconds}s | Counted Volume: ${safeCountedVolume.toFixed(2)} (${finalReason || 'valid'}) | Wallet: ${profile.linked_wallet_address}`);
 
     return new Response(
       JSON.stringify({
@@ -299,7 +302,7 @@ Deno.serve(async (req) => {
           exitPriceExecuted,
           realizedPnl,
           openTimeSeconds,
-          countedVolume,
+          countedVolume: safeCountedVolume,
           countedVolumeReason: finalReason,
           slippageRate: SLIPPAGE_RATE,
         },
