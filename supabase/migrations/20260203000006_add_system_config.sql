@@ -30,7 +30,9 @@ INSERT INTO public.system_config (key, value, description) VALUES
   ('daily_pool_kdx', '10000', 'Daily KDX reward pool distributed to traders'),
   ('min_claim_amount', '0.01', 'Minimum KDX amount that can be claimed'),
   ('reward_expiry_hours', '24', 'Hours until unclaimed rewards expire'),
-  ('cleanup_after_days', '7', 'Days to keep expired unclaimed rewards before cleanup')
+  ('cleanup_after_days', '7', 'Days to keep expired unclaimed rewards before cleanup'),
+  ('welcome_bonus_oil', '50', 'Oil amount given to new users as welcome bonus'),
+  ('welcome_bonus_usdt', '10000', 'Demo USDT amount given to new users')
 ON CONFLICT (key) DO NOTHING;
 
 -- Create function to get config value with default fallback

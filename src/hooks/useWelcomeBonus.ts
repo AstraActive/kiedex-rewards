@@ -36,7 +36,7 @@ export function useWelcomeBonus() {
     
     if (diffSeconds < 30) {
       hasShownToast.current = true;
-      toast.success('Welcome bonus added: +50 🛢️ Oil', {
+      toast.success(`Welcome bonus added: +${welcomeBonus.amount_oil} 🛢️ Oil`, {
         description: 'Start trading with your free Oil credits!',
         duration: 5000,
       });
