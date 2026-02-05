@@ -1,19 +1,34 @@
 -- Schedule daily rewards generation at 00:00 UTC
 -- This job calls the generate-daily-rewards edge function every day at midnight
+
+-- First create a helper function that reads from app.settings table
+CREATE OR REPLACE FUNCTION call_generate_daily_rewards()
+RETURNS void AS $$
+DECLARE
+  v_url TEXT;
+  v_auth_key TEXT;
+BEGIN
+  -- Read settings from app.settings table
+  SELECT value INTO v_url FROM app.settings WHERE key = 'supabase_url';
+  SELECT value INTO v_auth_key FROM app.settings WHERE key = 'service_role_key';
+  
+  -- Call the edge function
+  PERFORM net.http_post(
+    url := v_url || '/functions/v1/generate-daily-rewards',
+    headers := jsonb_build_object(
+      'Content-Type', 'application/json',
+      'Authorization', 'Bearer ' || v_auth_key
+    ),
+    body := '{}'::jsonb
+  );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Now schedule the helper function
 SELECT cron.schedule(
-  'generate-daily-rewards',           -- Job name
-  '0 0 * * *',                        -- Cron expression: Every day at 00:00 UTC
-  $$
-  SELECT
-    net.http_post(
-      url := current_setting('app.settings.supabase_url', true) || '/functions/v1/generate-daily-rewards',
-      headers := jsonb_build_object(
-        'Content-Type', 'application/json',
-        'Authorization', 'Bearer ' || current_setting('app.settings.service_role_key', true)
-      ),
-      body := '{}'::jsonb
-    ) AS request_id;
-  $$
+  'generate-daily-rewards',
+  '0 0 * * *',
+  $$SELECT call_generate_daily_rewards()$$
 );
 
 -- Verify the cron job was scheduled successfully
