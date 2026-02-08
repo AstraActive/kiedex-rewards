@@ -26,6 +26,7 @@ export function ConnectWalletScreen() {
     disconnectWallet,
     isLoadingLinkedWallet,
     resetWalletConnection,
+    isReconnecting,
   } = useWallet();
   const { signOut } = useAuth();
   const isMobile = useIsMobile();
@@ -38,13 +39,15 @@ export function ConnectWalletScreen() {
     resetAndClearCache,
   } = useConnectionTimeout();
 
-  // Loading state while fetching linked wallet - minimal loader
-  if (isLoadingLinkedWallet) {
+  // Loading state while fetching linked wallet OR wagmi is reconnecting
+  if (isLoadingLinkedWallet || isReconnecting) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center p-4">
         <div className="flex flex-col items-center justify-center">
           <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-          <p className="text-muted-foreground text-sm">Loading...</p>
+          <p className="text-muted-foreground text-sm">
+            {isReconnecting ? 'Reconnecting wallet...' : 'Loading...'}
+          </p>
         </div>
       </div>
     );

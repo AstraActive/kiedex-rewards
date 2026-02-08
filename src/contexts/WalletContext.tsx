@@ -15,7 +15,7 @@ const getWalletLinkedKey = (userId: string) => `kiedex_wallet_linked_${userId}`;
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   const { user } = useAuth();
-  const { address, isConnected } = useAccount();
+  const { address, isConnected, isReconnecting } = useAccount();
   const chainId = useChainId();
   const { switchChain } = useSwitchChain();
   const { disconnect } = useDisconnect();
@@ -356,6 +356,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         disconnectWallet,
         isLoadingLinkedWallet,
         resetWalletConnection,
+        isReconnecting,
       }}
     >
       {children}
