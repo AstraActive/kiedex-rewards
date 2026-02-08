@@ -12,7 +12,11 @@ function formatAddress(address: string): string {
   return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
-export function ConnectWalletScreen() {
+interface ConnectWalletScreenProps {
+  pageName?: string; // e.g., "Rewards", "Trading", etc.
+}
+
+export function ConnectWalletScreen({ pageName }: ConnectWalletScreenProps = {}) {
   const { 
     isConnected, 
     isWrongNetwork, 
@@ -41,20 +45,70 @@ export function ConnectWalletScreen() {
 
   // Loading state while fetching linked wallet OR wagmi is reconnecting
   if (isLoadingLinkedWallet || isReconnecting) {
+    const pageTitle = pageName ? `${pageName} Page` : 'This Page';
+    const requirementMessage = pageName 
+      ? `The ${pageName} page requires a verified wallet connection to access your account and manage your rewards.`
+      : 'This page requires a verified wallet connection.';
+
     return (
       <div className="min-h-[80vh] flex items-center justify-center p-4">
-        <div className="flex flex-col items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-          <p className="text-muted-foreground text-sm">
-            {isReconnecting ? 'Reconnecting wallet...' : 'Loading...'}
-          </p>
-        </div>
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+              <Shield className="h-8 w-8 text-primary" />
+            </div>
+            <CardTitle className="text-2xl">Wallet Connection Required</CardTitle>
+            <CardDescription>
+              {pageTitle} requires wallet verification
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
+              <div className="flex items-start gap-3">
+                <Shield className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-medium text-blue-500 mb-1">Security Verification</p>
+                  <p className="text-muted-foreground">
+                    {requirementMessage}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center justify-center py-4">
+              <Loader2 className="h-8 w-8 animate-spin text-primary mb-3" />
+              <p className="text-sm font-medium">
+                {isReconnecting ? 'Reconnecting to your wallet...' : 'Verifying wallet...'}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Please wait, this will only take a moment
+              </p>
+            </div>
+
+            {linkedWalletAddress && (
+              <div className="p-3 rounded-lg bg-muted text-center">
+                <p className="text-xs text-muted-foreground mb-1">Your linked wallet:</p>
+                <p className="font-mono text-sm font-medium text-primary">
+                  {formatAddress(linkedWalletAddress)}
+                </p>
+              </div>
+            )}
+
+            <div className="pt-2 text-center">
+              <p className="text-xs text-muted-foreground">
+                Cannot dismiss • Wallet connection is required
+              </p>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   // Wrong network state
   if (isWrongNetwork) {
+    const pageTitle = pageName ? `${pageName} Page` : 'This Page';
+    
     return (
       <div className="min-h-[80vh] flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
@@ -64,7 +118,7 @@ export function ConnectWalletScreen() {
             </div>
             <CardTitle className="text-2xl">Wrong Network</CardTitle>
             <CardDescription>
-              Please switch to Base network to continue
+              {pageTitle} requires Base network
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -91,6 +145,8 @@ export function ConnectWalletScreen() {
 
   // Wrong wallet connected (mismatch)
   if (walletMismatch && linkedWalletAddress && address) {
+    const pageTitle = pageName ? `${pageName} Page` : 'This Page';
+    
     return (
       <div className="min-h-[80vh] flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
@@ -100,7 +156,7 @@ export function ConnectWalletScreen() {
             </div>
             <CardTitle className="text-2xl">Wrong Wallet Connected</CardTitle>
             <CardDescription>
-              This account is linked to a different wallet
+              {pageTitle} requires your linked wallet
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -217,6 +273,11 @@ export function ConnectWalletScreen() {
 
   // Returning user - need to connect their saved wallet
   if (linkedWalletAddress && !isConnected) {
+    const pageTitle = pageName ? `${pageName} Page` : 'This Page';
+    const requirementMessage = pageName 
+      ? `The ${pageName} page requires your linked wallet to access your account.`
+      : 'This page requires your linked wallet.';
+    
     return (
       <div className="min-h-[80vh] flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
@@ -224,21 +285,33 @@ export function ConnectWalletScreen() {
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
               <Shield className="h-8 w-8 text-primary" />
             </div>
-            <CardTitle className="text-2xl">Connect Your Saved Wallet</CardTitle>
+            <CardTitle className="text-2xl">Connect Your Wallet to Continue</CardTitle>
             <CardDescription>
-              This account is linked to a specific wallet
+              {pageTitle} requires wallet verification
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/20">
+              <div className="flex items-start gap-3">
+                <Shield className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-medium text-amber-500 mb-1">Wallet Verification Required</p>
+                  <p className="text-muted-foreground">
+                    {requirementMessage}
+                  </p>
+                </div>
+              </div>
+            </div>
+
             <div className="p-4 rounded-lg bg-muted text-center">
-              <p className="text-xs text-muted-foreground mb-2">Linked wallet address:</p>
+              <p className="text-xs text-muted-foreground mb-2">Your linked wallet:</p>
               <p className="font-mono text-lg font-semibold text-primary">
                 {formatAddress(linkedWalletAddress)}
               </p>
             </div>
             
-            <p className="text-sm text-muted-foreground text-center">
-              Please connect the same wallet to continue.
+            <p className="text-sm font-medium text-center">
+              Please connect this wallet to continue
             </p>
 
             <div className="flex justify-center">

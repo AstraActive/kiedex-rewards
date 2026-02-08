@@ -149,7 +149,7 @@ export default function Trade() {
   return (
     <RequireAuth>
       <RequireMFA>
-        <RequireWallet>
+        <RequireWallet pageName="Trading">
           <TradeContent />
         </RequireWallet>
       </RequireMFA>

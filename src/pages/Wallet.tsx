@@ -478,7 +478,7 @@ export default function Wallet() {
   return (
     <RequireAuth>
       <RequireMFA>
-        <RequireWallet>
+        <RequireWallet pageName="Wallet">
           <WalletContent />
         </RequireWallet>
       </RequireMFA>

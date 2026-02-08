@@ -234,7 +234,7 @@ export default function Referral() {
   return (
     <RequireAuth>
       <RequireMFA>
-        <RequireWallet>
+        <RequireWallet pageName="Referral">
           <ReferralContent />
         </RequireWallet>
       </RequireMFA>

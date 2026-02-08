@@ -172,7 +172,7 @@ export default function Tasks() {
   return (
     <RequireAuth>
       <RequireMFA>
-        <RequireWallet>
+        <RequireWallet pageName="Tasks">
           <TasksContent />
         </RequireWallet>
       </RequireMFA>

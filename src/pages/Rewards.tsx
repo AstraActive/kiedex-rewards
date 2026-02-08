@@ -307,7 +307,7 @@ export default function Rewards() {
   return (
     <RequireAuth>
       <RequireMFA>
-        <RequireWallet>
+        <RequireWallet pageName="Rewards">
           <RewardsContent />
         </RequireWallet>
       </RequireMFA>

@@ -191,7 +191,7 @@ export default function Leaderboard() {
   return (
     <RequireAuth>
       <RequireMFA>
-        <RequireWallet>
+        <RequireWallet pageName="Leaderboard">
           <LeaderboardContent />
         </RequireWallet>
       </RequireMFA>
