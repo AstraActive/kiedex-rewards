@@ -25,21 +25,20 @@ const getYesterday = (): string => {
 };
 
 // Helper: Check if current time is within claim window
-// Claim window: 04:30:00 UTC today until 04:29:59 UTC tomorrow
+// Claim window: 05:00:00 UTC today until 04:59:59 UTC tomorrow
 const isWithinClaimWindow = (): boolean => {
   const now = new Date();
   const utcHour = now.getUTCHours();
-  const utcMinute = now.getUTCMinutes();
   
-  // After 04:30 UTC (inclusive)
-  return utcHour > 4 || (utcHour === 4 && utcMinute >= 30);
+  // After 05:00 UTC (inclusive)
+  return utcHour >= 5;
 };
 
-// Helper: Get expiry time (04:29:59 UTC tomorrow)
+// Helper: Get expiry time (04:59:59 UTC tomorrow)
 const getExpiryTime = (): Date => {
   const tomorrow = new Date();
   tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
-  tomorrow.setUTCHours(4, 29, 59, 999);
+  tomorrow.setUTCHours(4, 59, 59, 999);
   return tomorrow;
 };
 

@@ -1,6 +1,6 @@
 -- Refactor claim_reward to read directly from leaderboard_daily
 -- Eliminates need for daily_rewards_snapshot and external triggers
--- Rewards are available to claim after 04:30 UTC until 04:29:59 next day
+-- Rewards are available to claim after 05:00 UTC until 04:59:59 next day
 
 CREATE OR REPLACE FUNCTION claim_reward(
   p_claim_date DATE,
@@ -34,9 +34,9 @@ BEGIN
   ) INTO v_daily_pool;
 
   -- Calculate claim window for this date
-  -- Claim window: 04:30:00 UTC on (date + 1 day) until 04:29:59 UTC on (date + 2 days)
-  v_claim_window_start := (p_claim_date + INTERVAL '1 day')::DATE + TIME '04:30:00';
-  v_claim_window_end := (p_claim_date + INTERVAL '2 days')::DATE + TIME '04:29:59';
+  -- Claim window: 05:00:00 UTC on (date + 1 day) until 04:59:59 UTC on (date + 2 days)
+  v_claim_window_start := (p_claim_date + INTERVAL '1 day')::DATE + TIME '05:00:00';
+  v_claim_window_end := (p_claim_date + INTERVAL '2 days')::DATE + TIME '04:59:59';
 
   -- Validation: Check if within claim window
   IF v_now < v_claim_window_start THEN
@@ -45,7 +45,7 @@ BEGIN
       NULL::UUID, 
       0::NUMERIC, 
       0::NUMERIC, 
-      'Rewards not yet available. Claim window opens at 04:30 UTC.'::TEXT;
+      'Rewards not yet available. Claim window opens at 05:00 UTC.'::TEXT;
     RETURN;
   END IF;
 
@@ -189,10 +189,10 @@ GRANT EXECUTE ON FUNCTION claim_reward TO authenticated;
 -- Add comment for documentation
 COMMENT ON FUNCTION claim_reward IS 
 'Atomically claims daily trading rewards by reading from leaderboard_daily. No external triggers needed.
-Claim window: 04:30 UTC day after trading until 04:29:59 UTC two days after trading.';
+Claim window: 05:00 UTC day after trading until 04:59:59 UTC two days after trading.';
 
 -- Example usage:
--- Claim rewards for trading done on 2026-02-07 (can claim from 2026-02-08 04:30 UTC to 2026-02-09 04:29:59 UTC)
+-- Claim rewards for trading done on 2026-02-07 (can claim from 2026-02-08 05:00 UTC to 2026-02-09 04:59:59 UTC)
 -- SELECT * FROM claim_reward(
 --   p_claim_date := '2026-02-07'::DATE,
 --   p_user_id := '123e4567-e89b-12d3-a456-426614174001'::UUID,
