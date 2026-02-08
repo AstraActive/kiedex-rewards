@@ -14,9 +14,34 @@ const DAILY_VOLUME_CAP = 50000;
 const BINANCE_API_TIMEOUT_MS = 5000; // 5 second timeout
 const BINANCE_MAX_RETRIES = 2; // Retry up to 2 times
 const BINANCE_RETRY_DELAY_MS = 500; // 500ms delay between retries
+const REWARD_RESET_HOUR_UTC = 5; // Daily reset at 05:00 UTC
 
 interface CloseTradeRequest {
   positionId: string;
+}
+
+/**
+ * Calculate the reward period date based on 05:00 UTC reset window.
+ * Trading period "Day D": Day D 05:00 UTC → Day D+1 04:59:59 UTC
+ * Claimable: Day D+1 at 05:00 UTC onwards
+ * 
+ * Examples:
+ * - Trade at Feb 8 10:00 UTC → Period "2026-02-08" → Claim Feb 9 05:00+
+ * - Trade at Feb 9 02:00 UTC → Period "2026-02-08" → Claim Feb 9 05:00+
+ * - Trade at Feb 9 06:00 UTC → Period "2026-02-09" → Claim Feb 10 05:00+
+ */
+function getRewardPeriodDate(timestamp: Date): string {
+  const utcHour = timestamp.getUTCHours();
+  
+  // If before 05:00 UTC, this trade belongs to previous day's reward period
+  if (utcHour < REWARD_RESET_HOUR_UTC) {
+    const rewardDate = new Date(timestamp);
+    rewardDate.setUTCDate(rewardDate.getUTCDate() - 1);
+    return rewardDate.toISOString().split('T')[0];
+  }
+  
+  // If 05:00 UTC or later, belongs to today's reward period
+  return timestamp.toISOString().split('T')[0];
 }
 
 async function fetchBinancePrice(symbol: string): Promise<number> {
@@ -206,11 +231,12 @@ Deno.serve(async (req) => {
     );
 
     // Use RPC to atomically add counted volume with daily cap enforcement
-    const today = closedAt.toISOString().split('T')[0];
+    // Use reward period date (based on 05:00 UTC reset) instead of calendar date
+    const rewardPeriod = getRewardPeriodDate(closedAt);
     const { data: volumeResult, error: volumeError } = await supabase
       .rpc('add_counted_volume', {
         p_user_id: user.id,
-        p_date: today,
+        p_date: rewardPeriod,
         p_volume: rawCountedVolume,
         p_max_cap: DAILY_VOLUME_CAP,
       });
@@ -291,13 +317,14 @@ Deno.serve(async (req) => {
 
     // Update daily tasks progress
     try {
-      const today = closedAt.toISOString().split('T')[0];
+      // Use reward period date for consistent daily task tracking
+      const rewardPeriod = getRewardPeriodDate(closedAt);
       
       // Task 1: Complete 3 trades today (trade_3)
       await supabase.rpc('increment_task_progress', {
         p_user_id: user.id,
         p_task_id: 'trade_3',
-        p_date: today,
+        p_date: rewardPeriod,
         p_increment: 1,
         p_target: 3,
       });
@@ -306,7 +333,7 @@ Deno.serve(async (req) => {
       await supabase.rpc('increment_task_progress', {
         p_user_id: user.id,
         p_task_id: 'volume_1000',
-        p_date: today,
+        p_date: rewardPeriod,
         p_increment: positionSizeUsdt,
         p_target: 1000,
       });
@@ -316,7 +343,7 @@ Deno.serve(async (req) => {
         await supabase.rpc('increment_task_progress', {
           p_user_id: user.id,
           p_task_id: 'win_2',
-          p_date: today,
+          p_date: rewardPeriod,
           p_increment: 1,
           p_target: 2,
         });

@@ -1,0 +1,104 @@
+// Quick script to check leaderboard data
+import { createClient } from '@supabase/supabase-js';
+
+const supabaseUrl = 'https://oxjkyerdjhvxcqkbrlak.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94amt5ZXJkamh2eGNxa2JybGFrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDIwOTI0NiwiZXhwIjoyMDg1Nzg1MjQ2fQ.fIbMkVtZYqJCjGt1f1M01X29ClbFN1lJHp3ufAcZ5kE';
+
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+async function checkData() {
+  console.log('\n=== Checking Leaderboard Data ===\n');
+  
+  const now = new Date();
+  const utcHour = now.getUTCHours();
+  console.log(`Current UTC Time: ${now.toISOString()}`);
+  console.log(`Current UTC Hour: ${utcHour}`);
+  console.log(`\nReward Period Logic:`);
+  
+  // Calculate current period
+  let currentPeriod;
+  if (utcHour < 5) {
+    const date = new Date(now);
+    date.setUTCDate(date.getUTCDate() - 1);
+    currentPeriod = date.toISOString().split('T')[0];
+  } else {
+    currentPeriod = now.toISOString().split('T')[0];
+  }
+  
+  // Calculate claimable period
+  let claimablePeriod;
+  if (utcHour < 5) {
+    const date = new Date(now);
+    date.setUTCDate(date.getUTCDate() - 2);
+    claimablePeriod = date.toISOString().split('T')[0];
+  } else {
+    const date = new Date(now);
+    date.setUTCDate(date.getUTCDate() - 1);
+    claimablePeriod = date.toISOString().split('T')[0];
+  }
+  
+  console.log(`- Current Trading Period: ${currentPeriod}`);
+  console.log(`- Claimable Period: ${claimablePeriod}`);
+  console.log(`- Claims Available: ${utcHour >= 5 ? 'YES (after 05:00 UTC)' : 'NO (before 05:00 UTC)'}`);
+  
+  // Check current period data
+  const { data: current, error: err1 } = await supabase
+    .from('leaderboard_daily')
+    .select('*')
+    .eq('date', currentPeriod)
+    .order('total_counted_volume', { ascending: false });
+  
+  console.log(`\n${currentPeriod} Data (Current Period - Estimated Rewards):`);
+  if (err1) {
+    console.error('Error:', err1);
+  } else if (current.length === 0) {
+    console.log('  ❌ NO DATA - No trading yet this period');
+  } else {
+    console.log(`  ✅ Found ${current.length} entries`);
+    current.forEach(entry => {
+      console.log(`    - User: ${entry.user_id.substring(0, 8)}..., Volume: $${entry.total_counted_volume}, PnL: $${entry.total_pnl}, Trades: ${entry.trade_count}`);
+    });
+  }
+  
+  // Check claimable period data
+  const { data: claimable, error: err2 } = await supabase
+    .from('leaderboard_daily')
+    .select('*')
+    .eq('date', claimablePeriod)
+    .order('total_counted_volume', { ascending: false });
+  
+  console.log(`\n${claimablePeriod} Data (Claimable Period - Ready to Claim):`);
+  if (err2) {
+    console.error('Error:', err2);
+  } else if (claimable.length === 0) {
+    console.log('  ❌ NO DATA - No rewards to claim');
+  } else {
+    console.log(`  ✅ Found ${claimable.length} entries`);
+    claimable.forEach(entry => {
+      console.log(`    - User: ${entry.user_id.substring(0, 8)}..., Volume: $${entry.total_counted_volume}, PnL: $${entry.total_pnl}, Trades: ${entry.trade_count}`);
+    });
+  }
+  
+  // Check rewards_claims
+  const { data: claims, error: err3 } = await supabase
+    .from('rewards_claims')
+    .select('*')
+    .order('claim_date', { ascending: false })
+    .limit(10);
+  
+  console.log('\nRecent Reward Claims:');
+  if (err3) {
+    console.error('Error:', err3);
+  } else if (claims.length === 0) {
+    console.log('  ❌ NO claims found');
+  } else {
+    console.log(`  ✅ Found ${claims.length} claims`);
+    claims.forEach(claim => {
+      console.log(`    - Date: ${claim.claim_date}, Amount: ${claim.amount} KDX, Volume: $${claim.volume_score}`);
+    });
+  }
+  
+  console.log('\n');
+}
+
+checkData().catch(console.error);

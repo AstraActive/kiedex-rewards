@@ -6,6 +6,7 @@ import { useProfile } from '@/hooks/useProfile';
 // Daily pool size - configurable in system_config table after migration
 // To change: UPDATE system_config SET value = '15000' WHERE key = 'daily_pool_kdx';
 const DAILY_POOL = 10000; // 10,000 KDX daily pool
+const REWARD_RESET_HOUR_UTC = 5; // Daily reset at 05:00 UTC
 
 export interface RewardClaim {
   id: string;
@@ -17,29 +18,86 @@ export interface RewardClaim {
   wallet_address?: string;
 }
 
-// Helper: Get yesterday's date
-const getYesterday = (): string => {
-  const date = new Date();
-  date.setUTCDate(date.getUTCDate() - 1);
-  return date.toISOString().split('T')[0];
+/**
+ * Get the claimable reward period date.
+ * 
+ * Reward Period Logic:
+ * - Period "Day D": Day D 05:00 UTC → Day D+1 04:59:59 UTC
+ * - Claimable: Day D+1 at 05:00 UTC onwards
+ * 
+ * Examples:
+ * - Current time: Feb 9 10:00 UTC → Can claim period "Feb 8" (Feb 8 05:00 - Feb 9 04:59)
+ * - Current time: Feb 9 02:00 UTC → Can claim period "Feb 7" (Feb 7 05:00 - Feb 8 04:59)
+ */
+const getClaimablePeriodDate = (): string => {
+  const now = new Date();
+  const utcHour = now.getUTCHours();
+  
+  // If before 05:00 UTC, claimable period is 2 days ago
+  // (yesterday's period hasn't closed yet)
+  if (utcHour < REWARD_RESET_HOUR_UTC) {
+    const claimDate = new Date(now);
+    claimDate.setUTCDate(claimDate.getUTCDate() - 2);
+    return claimDate.toISOString().split('T')[0];
+  }
+  
+  // If 05:00 UTC or later, yesterday's period just closed and is claimable
+  const claimDate = new Date(now);
+  claimDate.setUTCDate(claimDate.getUTCDate() - 1);
+  return claimDate.toISOString().split('T')[0];
 };
 
-// Helper: Check if current time is within claim window
-// Claim window: 05:00:00 UTC today until 04:59:59 UTC tomorrow
+/**
+ * Get the current active reward period date (for estimated rewards).
+ * This is the period where trading currently counts toward.
+ */
+const getCurrentPeriodDate = (): string => {
+  const now = new Date();
+  const utcHour = now.getUTCHours();
+  
+  // If before 05:00 UTC, still in yesterday's period
+  if (utcHour < REWARD_RESET_HOUR_UTC) {
+    const periodDate = new Date(now);
+    periodDate.setUTCDate(periodDate.getUTCDate() - 1);
+    return periodDate.toISOString().split('T')[0];
+  }
+  
+  // If 05:00 UTC or later, in today's period
+  return now.toISOString().split('T')[0];
+};
+
+/**
+ * Check if currently within claim window (always after reset).
+ * Claims are available right after the 05:00 UTC reset.
+ */
 const isWithinClaimWindow = (): boolean => {
   const now = new Date();
   const utcHour = now.getUTCHours();
   
-  // After 05:00 UTC (inclusive)
-  return utcHour >= 5;
+  // After 05:00 UTC, new claims become available
+  return utcHour >= REWARD_RESET_HOUR_UTC;
 };
 
-// Helper: Get expiry time (04:59:59 UTC tomorrow)
+/**
+ * Get the expiry time for current claimable rewards.
+ * Rewards expire at the next reset (04:59:59 UTC tomorrow).
+ */
 const getExpiryTime = (): Date => {
-  const tomorrow = new Date();
-  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
-  tomorrow.setUTCHours(4, 59, 59, 999);
-  return tomorrow;
+  const now = new Date();
+  const utcHour = now.getUTCHours();
+  
+  const expiry = new Date(now);
+  
+  // If before 05:00 UTC, expiry is today at 04:59:59
+  if (utcHour < REWARD_RESET_HOUR_UTC) {
+    expiry.setUTCHours(4, 59, 59, 999);
+  } else {
+    // If after 05:00 UTC, expiry is tomorrow at 04:59:59
+    expiry.setUTCDate(expiry.getUTCDate() + 1);
+    expiry.setUTCHours(4, 59, 59, 999);
+  }
+  
+  return expiry;
 };
 
 export function useRewards() {
@@ -47,12 +105,12 @@ export function useRewards() {
   const { data: profile } = useProfile();
   const queryClient = useQueryClient();
   
-  const today = new Date().toISOString().split('T')[0];
-  const yesterday = getYesterday();
+  const currentPeriod = getCurrentPeriodDate();
+  const claimablePeriod = getClaimablePeriodDate();
 
-  // Get yesterday's leaderboard data for claimable rewards
-  const { data: yesterdayStats, isLoading: yesterdayLoading } = useQuery({
-    queryKey: ['yesterday_stats', user?.id, yesterday],
+  // Get claimable period's leaderboard data for rewards
+  const { data: claimableStats, isLoading: claimableLoading } = useQuery({
+    queryKey: ['claimable_stats', user?.id, claimablePeriod],
     queryFn: async () => {
       if (!user?.id) return null;
       
@@ -60,7 +118,7 @@ export function useRewards() {
         .from('leaderboard_daily')
         .select('*')
         .eq('user_id', user.id)
-        .eq('date', yesterday)
+        .eq('date', claimablePeriod)
         .maybeSingle();
       
       if (error) throw error;
@@ -71,14 +129,14 @@ export function useRewards() {
     gcTime: 5 * 60_000, // 5 minutes cache
   });
 
-  // Get total volume for yesterday to calculate claimable share
-  const { data: totalVolumeYesterday } = useQuery({
-    queryKey: ['total_volume_yesterday', yesterday],
+  // Get total volume for claimable period to calculate share
+  const { data: totalVolumeClaimable } = useQuery({
+    queryKey: ['total_volume_claimable', claimablePeriod],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('leaderboard_daily')
         .select('total_counted_volume')
-        .eq('date', yesterday);
+        .eq('date', claimablePeriod);
       
       if (error) throw error;
       return (data || []).reduce((sum, entry) => sum + (entry.total_counted_volume || 0), 0);
@@ -87,9 +145,9 @@ export function useRewards() {
     gcTime: 5 * 60_000, // 5 minutes cache
   });
 
-  // Check if already claimed yesterday's rewards
+  // Check if already claimed this period's rewards
   const { data: alreadyClaimed } = useQuery({
-    queryKey: ['reward_claimed', user?.id, yesterday],
+    queryKey: ['reward_claimed', user?.id, claimablePeriod],
     queryFn: async () => {
       if (!user?.id) return false;
       
@@ -97,7 +155,7 @@ export function useRewards() {
         .from('rewards_claims')
         .select('id')
         .eq('user_id', user.id)
-        .eq('claim_date', yesterday)
+        .eq('claim_date', claimablePeriod)
         .maybeSingle();
       
       if (error) throw error;
@@ -129,9 +187,9 @@ export function useRewards() {
     gcTime: 5 * 60_000, // 5 minutes cache
   });
 
-  // Get user's TODAY's volume from leaderboard for estimated rewards (live preview)
-  const { data: todayStats } = useQuery({
-    queryKey: ['today_stats', user?.id, today],
+  // Get user's CURRENT PERIOD volume from leaderboard for estimated rewards (live preview)
+  const { data: currentStats } = useQuery({
+    queryKey: ['current_stats', user?.id, currentPeriod],
     queryFn: async () => {
       if (!user?.id) return null;
       
@@ -139,7 +197,7 @@ export function useRewards() {
         .from('leaderboard_daily')
         .select('*')
         .eq('user_id', user.id)
-        .eq('date', today)
+        .eq('date', currentPeriod)
         .maybeSingle();
       
       if (error) throw error;
@@ -150,14 +208,14 @@ export function useRewards() {
     gcTime: 60_000, // 1 minute cache
   });
 
-  // Get total counted volume for TODAY to calculate estimated share
-  const { data: totalVolumeToday } = useQuery({
-    queryKey: ['total_volume', today],
+  // Get total counted volume for CURRENT PERIOD to calculate estimated share
+  const { data: totalVolumeCurrent } = useQuery({
+    queryKey: ['total_volume_current', currentPeriod],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('leaderboard_daily')
         .select('total_counted_volume')
-        .eq('date', today);
+        .eq('date', currentPeriod);
       
       if (error) throw error;
       return (data || []).reduce((sum, entry) => sum + (entry.total_counted_volume || 0), 0);
@@ -166,18 +224,18 @@ export function useRewards() {
     gcTime: 60_000, // 1 minute cache
   });
 
-  // Calculate ESTIMATED rewards (today's live preview - not claimable yet)
-  const userVolumeToday = todayStats?.total_counted_volume || 0;
-  const userRawVolumeToday = todayStats?.total_volume || 0;
-  const poolTotalToday = totalVolumeToday || 0;
-  const userShareToday = poolTotalToday > 0 ? userVolumeToday / poolTotalToday : 0;
-  const estimatedRewards = userShareToday * DAILY_POOL;
+  // Calculate ESTIMATED rewards (current period live preview - not claimable yet)
+  const userVolumeCurrent = currentStats?.total_counted_volume || 0;
+  const userRawVolumeCurrent = currentStats?.total_volume || 0;
+  const poolTotalCurrent = totalVolumeCurrent || 0;
+  const userShareCurrent = poolTotalCurrent > 0 ? userVolumeCurrent / poolTotalCurrent : 0;
+  const estimatedRewards = userShareCurrent * DAILY_POOL;
 
-  // Calculate CLAIMABLE rewards (yesterday's trading, after 03:10 UTC)
-  const userVolumeYesterday = yesterdayStats?.total_counted_volume || 0;
-  const poolTotalYesterday = totalVolumeYesterday || 0;
-  const userShareYesterday = poolTotalYesterday > 0 ? userVolumeYesterday / poolTotalYesterday : 0;
-  const claimableRewards = userShareYesterday * DAILY_POOL;
+  // Calculate CLAIMABLE rewards (completed period, after 05:00 UTC)
+  const userVolumeClaimable = claimableStats?.total_counted_volume || 0;
+  const poolTotalClaimable = totalVolumeClaimable || 0;
+  const userShareClaimable = poolTotalClaimable > 0 ? userVolumeClaimable / poolTotalClaimable : 0;
+  const claimableRewards = userShareClaimable * DAILY_POOL;
   
   const withinClaimWindow = isWithinClaimWindow();
   const expiresAt = getExpiryTime();
@@ -211,7 +269,7 @@ export function useRewards() {
 
       // Use atomic RPC function - all operations in one transaction
       const { data, error } = await supabase.rpc('claim_reward', {
-        p_claim_date: yesterday,
+        p_claim_date: claimablePeriod,
         p_user_id: user.id,
         p_wallet_address: walletAddress,
       }) as { data: Array<{
@@ -267,7 +325,7 @@ export function useRewards() {
       };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['yesterday_stats'] });
+      queryClient.invalidateQueries({ queryKey: ['claimable_stats'] });
       queryClient.invalidateQueries({ queryKey: ['reward_claimed'] });
       queryClient.invalidateQueries({ queryKey: ['rewards_history'] });
       queryClient.invalidateQueries({ queryKey: ['balances'] });
@@ -278,15 +336,15 @@ export function useRewards() {
 
   return {
     dailyPool: DAILY_POOL,
-    // Today's estimated (live preview)
-    userVolumeToday,
-    userRawVolumeToday,
-    totalVolumeToday: poolTotalToday,
-    userShareToday,
+    // Current period estimated (live preview)
+    userVolumeToday: userVolumeCurrent,
+    userRawVolumeToday: userRawVolumeCurrent,
+    totalVolumeToday: poolTotalCurrent,
+    userShareToday: userShareCurrent,
     estimatedRewards,
-    // Claimable (yesterday's trading, after 03:10 UTC)
+    // Claimable (completed period, after 05:00 UTC)
     claimableRewards,
-    claimableDate: yesterday,
+    claimableDate: claimablePeriod,
     hasClaimableRewards,
     expiresAt: expiresAt.toISOString(),
     getTimeRemaining,
@@ -296,6 +354,6 @@ export function useRewards() {
     claimError: claimMutation.error,
     // History
     claimHistory: claimHistory || [],
-    isLoading: yesterdayLoading || historyLoading,
+    isLoading: claimableLoading || historyLoading,
   };
 }
