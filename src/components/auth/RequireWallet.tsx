@@ -1,5 +1,6 @@
 import { useWallet } from '@/hooks/useWallet';
 import { ConnectWalletScreen } from '@/components/wallet/ConnectWalletScreen';
+import { useState, useEffect } from 'react';
 
 interface RequireWalletProps {
   children: React.ReactNode;
@@ -16,11 +17,30 @@ export function RequireWallet({ children, pageName }: RequireWalletProps) {
     isLinkingWallet,
     isLoadingLinkedWallet,
     linkedWalletAddress,
+    isReconnecting,
   } = useWallet();
+  
+  // Add a small delay before showing connect screen to prevent flash during tab switches
+  const [showConnectScreen, setShowConnectScreen] = useState(false);
+  
+  useEffect(() => {
+    // If wallet is reconnecting or connected, don't show connect screen
+    if (isReconnecting || isConnected) {
+      setShowConnectScreen(false);
+      return;
+    }
+    
+    // Add 300ms delay before showing connect screen to handle brief disconnections during tab switches
+    const timer = setTimeout(() => {
+      setShowConnectScreen(true);
+    }, 300);
+    
+    return () => clearTimeout(timer);
+  }, [isConnected, isReconnecting]);
 
-  // Show loading screen only during initial profile fetch
+  // Show loading screen only during initial profile fetch OR wallet reconnection
   // This should be very quick - don't block if wallet is already known to be linked
-  if (isLoadingLinkedWallet) {
+  if (isLoadingLinkedWallet || isReconnecting) {
     return <ConnectWalletScreen pageName={pageName} />;
   }
 
@@ -39,8 +59,8 @@ export function RequireWallet({ children, pageName }: RequireWalletProps) {
     return <ConnectWalletScreen pageName={pageName} />;
   }
 
-  // Block if not connected
-  if (!isConnected) {
+  // Block if not connected (with delay to prevent flash during tab switches)
+  if (!isConnected && showConnectScreen) {
     return <ConnectWalletScreen pageName={pageName} />;
   }
 
