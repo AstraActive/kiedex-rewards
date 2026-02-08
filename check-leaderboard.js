@@ -13,33 +13,19 @@ async function checkData() {
   const utcHour = now.getUTCHours();
   console.log(`Current UTC Time: ${now.toISOString()}`);
   console.log(`Current UTC Hour: ${utcHour}`);
-  console.log(`\nReward Period Logic:`);
+  console.log(`\nReward Period Logic (00:00 UTC Reset):`);
   
-  // Calculate current period
-  let currentPeriod;
-  if (utcHour < 5) {
-    const date = new Date(now);
-    date.setUTCDate(date.getUTCDate() - 1);
-    currentPeriod = date.toISOString().split('T')[0];
-  } else {
-    currentPeriod = now.toISOString().split('T')[0];
-  }
+  // With 00:00 UTC reset, current period is always today
+  const currentPeriod = now.toISOString().split('T')[0];
   
-  // Calculate claimable period
-  let claimablePeriod;
-  if (utcHour < 5) {
-    const date = new Date(now);
-    date.setUTCDate(date.getUTCDate() - 2);
-    claimablePeriod = date.toISOString().split('T')[0];
-  } else {
-    const date = new Date(now);
-    date.setUTCDate(date.getUTCDate() - 1);
-    claimablePeriod = date.toISOString().split('T')[0];
-  }
+  // Claimable period is always yesterday
+  const claimDate = new Date(now);
+  claimDate.setUTCDate(claimDate.getUTCDate() - 1);
+  const claimablePeriod = claimDate.toISOString().split('T')[0];
   
-  console.log(`- Current Trading Period: ${currentPeriod}`);
-  console.log(`- Claimable Period: ${claimablePeriod}`);
-  console.log(`- Claims Available: ${utcHour >= 5 ? 'YES (after 05:00 UTC)' : 'NO (before 05:00 UTC)'}`);
+  console.log(`- Current Trading Period: ${currentPeriod} (today's trading)`);
+  console.log(`- Claimable Period: ${claimablePeriod} (yesterday's rewards)`);
+  console.log(`- Claims Available: YES (anytime after 00:00 UTC)`);
   
   // Check current period data
   const { data: current, error: err1 } = await supabase
@@ -52,7 +38,7 @@ async function checkData() {
   if (err1) {
     console.error('Error:', err1);
   } else if (current.length === 0) {
-    console.log('  ❌ NO DATA - No trading yet this period');
+    console.log('  ❌ NO DATA - No trading yet today');
   } else {
     console.log(`  ✅ Found ${current.length} entries`);
     current.forEach(entry => {
