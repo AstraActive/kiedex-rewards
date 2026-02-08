@@ -6,11 +6,11 @@ interface CountdownTimerProps {
 }
 
 export function CountdownTimer({ className, label = 'Resets in' }: CountdownTimerProps) {
-  const [timeLeft, setTimeLeft] = useState(getTimeUntil0500UTC());
+  const [timeLeft, setTimeLeft] = useState(getTimeUntil0000UTC());
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setTimeLeft(getTimeUntil0500UTC());
+      setTimeLeft(getTimeUntil0000UTC());
     }, 1000);
 
     return () => clearInterval(timer);
@@ -32,17 +32,13 @@ export function CountdownTimer({ className, label = 'Resets in' }: CountdownTime
   );
 }
 
-function getTimeUntil0500UTC(): number {
+function getTimeUntil0000UTC(): number {
   const now = new Date();
-  const next0500 = new Date(now);
+  const next0000 = new Date(now);
   
-  // Set to 05:00:00 UTC today
-  next0500.setUTCHours(5, 0, 0, 0);
+  // Set to 00:00:00 UTC tomorrow
+  next0000.setUTCDate(next0000.getUTCDate() + 1);
+  next0000.setUTCHours(0, 0, 0, 0);
   
-  // If we've passed 05:00 UTC today, move to tomorrow
-  if (now >= next0500) {
-    next0500.setUTCDate(next0500.getUTCDate() + 1);
-  }
-  
-  return next0500.getTime() - now.getTime();
+  return next0000.getTime() - now.getTime();
 }

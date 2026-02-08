@@ -14,33 +14,25 @@ const DAILY_VOLUME_CAP = 50000;
 const BINANCE_API_TIMEOUT_MS = 5000; // 5 second timeout
 const BINANCE_MAX_RETRIES = 2; // Retry up to 2 times
 const BINANCE_RETRY_DELAY_MS = 500; // 500ms delay between retries
-const REWARD_RESET_HOUR_UTC = 5; // Daily reset at 05:00 UTC
+const REWARD_RESET_HOUR_UTC = 0; // Daily reset at 00:00 UTC
 
 interface CloseTradeRequest {
   positionId: string;
 }
 
 /**
- * Calculate the reward period date based on 05:00 UTC reset window.
- * Trading period "Day D": Day D 05:00 UTC → Day D+1 04:59:59 UTC
- * Claimable: Day D+1 at 05:00 UTC onwards
+ * Calculate the reward period date based on 00:00 UTC reset window.
+ * Trading period "Day D": Day D 00:00 UTC → Day D 23:59:59 UTC
+ * Claimable: Day D+1 at 00:00 UTC onwards
  * 
  * Examples:
- * - Trade at Feb 8 10:00 UTC → Period "2026-02-08" → Claim Feb 9 05:00+
- * - Trade at Feb 9 02:00 UTC → Period "2026-02-08" → Claim Feb 9 05:00+
- * - Trade at Feb 9 06:00 UTC → Period "2026-02-09" → Claim Feb 10 05:00+
+ * - Trade at Feb 8 10:00 UTC → Period "2026-02-08" → Claim Feb 9 00:00+
+ * - Trade at Feb 8 23:30 UTC → Period "2026-02-08" → Claim Feb 9 00:00+
+ * - Trade at Feb 9 00:30 UTC → Period "2026-02-09" → Claim Feb 10 00:00+
  */
 function getRewardPeriodDate(timestamp: Date): string {
-  const utcHour = timestamp.getUTCHours();
-  
-  // If before 05:00 UTC, this trade belongs to previous day's reward period
-  if (utcHour < REWARD_RESET_HOUR_UTC) {
-    const rewardDate = new Date(timestamp);
-    rewardDate.setUTCDate(rewardDate.getUTCDate() - 1);
-    return rewardDate.toISOString().split('T')[0];
-  }
-  
-  // If 05:00 UTC or later, belongs to today's reward period
+  // With 00:00 UTC reset, trades always belong to current UTC date
+  // No adjustment needed - just return the UTC date
   return timestamp.toISOString().split('T')[0];
 }
 

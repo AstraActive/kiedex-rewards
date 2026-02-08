@@ -6,7 +6,7 @@ import { useProfile } from '@/hooks/useProfile';
 // Daily pool size - configurable in system_config table after migration
 // To change: UPDATE system_config SET value = '15000' WHERE key = 'daily_pool_kdx';
 const DAILY_POOL = 10000; // 10,000 KDX daily pool
-const REWARD_RESET_HOUR_UTC = 5; // Daily reset at 05:00 UTC
+const REWARD_RESET_HOUR_UTC = 0; // Daily reset at 00:00 UTC
 
 export interface RewardClaim {
   id: string;
@@ -22,27 +22,16 @@ export interface RewardClaim {
  * Get the claimable reward period date.
  * 
  * Reward Period Logic:
- * - Period "Day D": Day D 05:00 UTC → Day D+1 04:59:59 UTC
- * - Claimable: Day D+1 at 05:00 UTC onwards
+ * - Period "Day D": Day D 00:00 UTC → Day D 23:59:59 UTC
+ * - Claimable: Day D+1 at 00:00 UTC onwards
  * 
  * Examples:
- * - Current time: Feb 9 10:00 UTC → Can claim period "Feb 8" (Feb 8 05:00 - Feb 9 04:59)
- * - Current time: Feb 9 02:00 UTC → Can claim period "Feb 7" (Feb 7 05:00 - Feb 8 04:59)
+ * - Current time: Feb 9 10:00 UTC → Can claim period "Feb 8" (Feb 8 00:00 - Feb 8 23:59)
+ * - Current time: Feb 9 00:30 UTC → Can claim period "Feb 8" (Feb 8 00:00 - Feb 8 23:59)
  */
 const getClaimablePeriodDate = (): string => {
-  const now = new Date();
-  const utcHour = now.getUTCHours();
-  
-  // If before 05:00 UTC, claimable period is 2 days ago
-  // (yesterday's period hasn't closed yet)
-  if (utcHour < REWARD_RESET_HOUR_UTC) {
-    const claimDate = new Date(now);
-    claimDate.setUTCDate(claimDate.getUTCDate() - 2);
-    return claimDate.toISOString().split('T')[0];
-  }
-  
-  // If 05:00 UTC or later, yesterday's period just closed and is claimable
-  const claimDate = new Date(now);
+  // With 00:00 UTC reset, yesterday's period is always claimable
+  const claimDate = new Date();
   claimDate.setUTCDate(claimDate.getUTCDate() - 1);
   return claimDate.toISOString().split('T')[0];
 };
@@ -52,51 +41,27 @@ const getClaimablePeriodDate = (): string => {
  * This is the period where trading currently counts toward.
  */
 const getCurrentPeriodDate = (): string => {
-  const now = new Date();
-  const utcHour = now.getUTCHours();
-  
-  // If before 05:00 UTC, still in yesterday's period
-  if (utcHour < REWARD_RESET_HOUR_UTC) {
-    const periodDate = new Date(now);
-    periodDate.setUTCDate(periodDate.getUTCDate() - 1);
-    return periodDate.toISOString().split('T')[0];
-  }
-  
-  // If 05:00 UTC or later, in today's period
-  return now.toISOString().split('T')[0];
+  // With 00:00 UTC reset, current period is always today's UTC date
+  return new Date().toISOString().split('T')[0];
 };
 
 /**
  * Check if currently within claim window (always after reset).
- * Claims are available right after the 05:00 UTC reset.
+ * Claims are available right after the 00:00 UTC reset.
  */
 const isWithinClaimWindow = (): boolean => {
-  const now = new Date();
-  const utcHour = now.getUTCHours();
-  
-  // After 05:00 UTC, new claims become available
-  return utcHour >= REWARD_RESET_HOUR_UTC;
+  // With 00:00 UTC reset, claims are always available
+  return true;
 };
 
 /**
  * Get the expiry time for current claimable rewards.
- * Rewards expire at the next reset (04:59:59 UTC tomorrow).
+ * Rewards expire at the next reset (23:59:59 UTC today).
  */
 const getExpiryTime = (): Date => {
-  const now = new Date();
-  const utcHour = now.getUTCHours();
-  
-  const expiry = new Date(now);
-  
-  // If before 05:00 UTC, expiry is today at 04:59:59
-  if (utcHour < REWARD_RESET_HOUR_UTC) {
-    expiry.setUTCHours(4, 59, 59, 999);
-  } else {
-    // If after 05:00 UTC, expiry is tomorrow at 04:59:59
-    expiry.setUTCDate(expiry.getUTCDate() + 1);
-    expiry.setUTCHours(4, 59, 59, 999);
-  }
-  
+  // Rewards expire at end of today (23:59:59 UTC)
+  const expiry = new Date();
+  expiry.setUTCHours(23, 59, 59, 999);
   return expiry;
 };
 

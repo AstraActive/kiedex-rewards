@@ -1,6 +1,6 @@
 -- Refactor claim_reward to read directly from leaderboard_daily
 -- Eliminates need for daily_rewards_snapshot and external triggers
--- Rewards are available to claim after 05:00 UTC until 04:59:59 next day
+-- Rewards are available to claim after 00:00 UTC until 23:59:59 same day
 
 CREATE OR REPLACE FUNCTION claim_reward(
   p_claim_date DATE,
@@ -34,9 +34,9 @@ BEGIN
   ) INTO v_daily_pool;
 
   -- Calculate claim window for this date
-  -- Claim window: 05:00:00 UTC on (date + 1 day) until 04:59:59 UTC on (date + 2 days)
-  v_claim_window_start := (p_claim_date + INTERVAL '1 day')::DATE + TIME '05:00:00';
-  v_claim_window_end := (p_claim_date + INTERVAL '2 days')::DATE + TIME '04:59:59';
+  -- Claim window: 00:00:00 UTC on (date + 1 day) until 23:59:59 UTC on (date + 1 day)
+  v_claim_window_start := (p_claim_date + INTERVAL '1 day')::DATE + TIME '00:00:00';
+  v_claim_window_end := (p_claim_date + INTERVAL '1 day')::DATE + TIME '23:59:59';
 
   -- Validation: Check if within claim window
   IF v_now < v_claim_window_start THEN
@@ -45,7 +45,7 @@ BEGIN
       NULL::UUID, 
       0::NUMERIC, 
       0::NUMERIC, 
-      'Rewards not yet available. Claim window opens at 05:00 UTC.'::TEXT;
+      'Rewards not yet available. Claim window opens at 00:00 UTC.'::TEXT;
     RETURN;
   END IF;
 
