@@ -9,9 +9,9 @@ Daily rewards now work **without external triggers** by reading directly from `l
 - Users trade on day `D`
 - Volume tracked in `leaderboard_daily` with `date = D`
 
-### 2. Claim Window (Next Day 03:10 UTC - 03:09:59 UTC)
-- **Opens**: Day `D+1` at 03:10:00 UTC
-- **Closes**: Day `D+2` at 03:09:59 UTC
+### 2. Claim Window (Next Day 04:30 UTC - 04:29:59 UTC)
+- **Opens**: Day `D+1` at 04:30:00 UTC
+- **Closes**: Day `D+2` at 04:29:59 UTC
 - Users have ~24 hours to claim
 
 ### 3. Claiming Process
@@ -26,7 +26,7 @@ supabase.rpc('claim_reward', {
 
 ### 4. Backend Calculates On-the-Fly
 The `claim_reward()` RPC function:
-1. ✅ Validates claim window (03:10 UTC - 03:09:59 next day)
+1. ✅ Validates claim window (04:30 UTC - 04:29:59 next day)
 2. ✅ Checks if already claimed (unique constraint on `rewards_claims`)
 3. ✅ Reads user's volume from `leaderboard_daily WHERE date = p_claim_date`
 4. ✅ Calculates total pool volume for that date
@@ -45,7 +45,7 @@ const estimatedRewards = (todayVolume / todayTotalVolume) * 10000;
 
 ### Yesterday's Claimable
 ```typescript
-// After 03:10 UTC, shows yesterday's rewards (claimable)
+// After 04:30 UTC, shows yesterday's rewards (claimable)
 const claimableRewards = (yesterdayVolume / yesterdayTotalVolume) * 10000;
 const hasClaimableRewards = claimableRewards > 0 && !alreadyClaimed && afterResetTime;
 ```
@@ -53,7 +53,7 @@ const hasClaimableRewards = claimableRewards > 0 && !alreadyClaimed && afterRese
 ## Architecture Benefits
 
 ✅ **No external dependencies** - No edge functions, no cron jobs  
-✅ **Instant availability** - Rewards claimable immediately at 03:10 UTC  
+✅ **Instant availability** - Rewards claimable immediately at 04:30 UTC  
 ✅ **Simpler codebase** - No snapshot table, no sync issues  
 ✅ **Self-contained** - Everything in database RPC  
 ✅ **Race condition safe** - Unique constraint prevents double claims  
@@ -92,12 +92,12 @@ WHERE key = 'daily_pool_kdx';
 ## Testing Checklist
 
 - [ ] User trades on day D
-- [ ] Before 03:10 UTC on day D+1: Rewards NOT claimable
-- [ ] After 03:10 UTC on day D+1: Rewards ARE claimable
+- [ ] Before 04:30 UTC on day D+1: Rewards NOT claimable
+- [ ] After 04:30 UTC on day D+1: Rewards ARE claimable
 - [ ] User claims successfully
 - [ ] Balance updated correctly
 - [ ] Second claim attempt fails with "Already claimed"
-- [ ] After 03:09:59 UTC on day D+2: Claim fails with "Expired"
+- [ ] After 04:29:59 UTC on day D+2: Claim fails with "Expired"
 - [ ] Referral bonus paid correctly (8% of claim)
 
 ## Rollback Plan
@@ -119,12 +119,13 @@ If issues arise:
 - Rewards NOT yet available
 - Frontend shows countdown: "Rewards available in X minutes"
 
-**Feb 8, 2026 at 03:10 UTC**
+**Feb 8, 2026 at 04:30 UTC**
 - Countdown expires
 - "Claim Rewards" button appears
 - User clicks → Claim succeeds
 - Balance updated immediately
 
-**Feb 9, 2026 at 03:10 UTC**
+**Feb 9, 2026 at 04:30 UTC**
 - New claim window opens for Feb 8 trading
-- Feb 7 rewards expire at 03:09:59 UTC
+- Feb 7 rewards expire at 04:29:59 UTC
+
