@@ -38,9 +38,18 @@ export function RequireWallet({ children, pageName }: RequireWalletProps) {
     return () => clearTimeout(timer);
   }, [isConnected, isReconnecting]);
 
-  // Show loading screen only during initial profile fetch OR wallet reconnection
+  // Show simple loading during wallet reconnection (tab switch, etc.)
+  if (isReconnecting) {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center">
+        <div className="animate-pulse text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
+  // Show loading screen only during initial profile fetch
   // This should be very quick - don't block if wallet is already known to be linked
-  if (isLoadingLinkedWallet || isReconnecting) {
+  if (isLoadingLinkedWallet) {
     return <ConnectWalletScreen pageName={pageName} />;
   }
 
