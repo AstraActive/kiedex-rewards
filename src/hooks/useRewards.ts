@@ -17,18 +17,31 @@ export interface RewardClaim {
   wallet_address?: string;
 }
 
-export interface DailyRewardSnapshot {
-  id: string;
-  user_id: string;
-  reward_date: string;
-  volume_score: number;
-  total_pool_volume: number;
-  reward_amount: number;
-  is_claimed: boolean;
-  claimed_at?: string;
-  expires_at?: string; // NEW: expiry timestamp
-  created_at: string;
-}
+// Helper: Get yesterday's date
+const getYesterday = (): string => {
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() - 1);
+  return date.toISOString().split('T')[0];
+};
+
+// Helper: Check if current time is within claim window
+// Claim window: 03:10:00 UTC today until 03:09:59 UTC tomorrow
+const isWithinClaimWindow = (): boolean => {
+  const now = new Date();
+  const utcHour = now.getUTCHours();
+  const utcMinute = now.getUTCMinutes();
+  
+  // After 03:10 UTC (inclusive)
+  return utcHour > 3 || (utcHour === 3 && utcMinute >= 10);
+};
+
+// Helper: Get expiry time (03:09:59 UTC tomorrow)
+const getExpiryTime = (): Date => {
+  const tomorrow = new Date();
+  tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+  tomorrow.setUTCHours(3, 9, 59, 999);
+  return tomorrow;
+};
 
 export function useRewards() {
   const { user } = useAuth();
@@ -36,33 +49,64 @@ export function useRewards() {
   const queryClient = useQueryClient();
   
   const today = new Date().toISOString().split('T')[0];
+  const yesterday = getYesterday();
 
-  // Get claimable snapshot (unclaimed AND not expired)
-  const { data: claimableSnapshot, isLoading: snapshotLoading } = useQuery({
-    queryKey: ['claimable_snapshot', user?.id, today], // Re-fetch daily
+  // Get yesterday's leaderboard data for claimable rewards
+  const { data: yesterdayStats, isLoading: yesterdayLoading } = useQuery({
+    queryKey: ['yesterday_stats', user?.id, yesterday],
     queryFn: async () => {
       if (!user?.id) return null;
       
-      const now = new Date().toISOString(); // Fresh timestamp on every fetch
-      
-      // Fetch the most recent unclaimed snapshot that hasn't expired
       const { data, error } = await supabase
-        .from('daily_rewards_snapshot')
+        .from('leaderboard_daily')
         .select('*')
         .eq('user_id', user.id)
-        .eq('is_claimed', false)
-        .gt('expires_at', now) // Only get non-expired rewards
-        .order('reward_date', { ascending: false })
-        .limit(1)
-        .maybeSingle(); // Use maybeSingle to avoid error when no data
+        .eq('date', yesterday)
+        .maybeSingle();
       
       if (error) throw error;
-      return data as DailyRewardSnapshot | null;
+      return data;
     },
     enabled: !!user?.id,
     staleTime: 60_000, // 1 minute
     gcTime: 5 * 60_000, // 5 minutes cache
-    refetchInterval: 60_000, // Refetch every minute to update expiry status
+  });
+
+  // Get total volume for yesterday to calculate claimable share
+  const { data: totalVolumeYesterday } = useQuery({
+    queryKey: ['total_volume_yesterday', yesterday],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('leaderboard_daily')
+        .select('total_counted_volume')
+        .eq('date', yesterday);
+      
+      if (error) throw error;
+      return (data || []).reduce((sum, entry) => sum + (entry.total_counted_volume || 0), 0);
+    },
+    staleTime: 60_000, // 1 minute
+    gcTime: 5 * 60_000, // 5 minutes cache
+  });
+
+  // Check if already claimed yesterday's rewards
+  const { data: alreadyClaimed } = useQuery({
+    queryKey: ['reward_claimed', user?.id, yesterday],
+    queryFn: async () => {
+      if (!user?.id) return false;
+      
+      const { data, error } = await supabase
+        .from('rewards_claims')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('claim_date', yesterday)
+        .maybeSingle();
+      
+      if (error) throw error;
+      return !!data;
+    },
+    enabled: !!user?.id,
+    staleTime: 60_000, // 1 minute
+    gcTime: 5 * 60_000, // 5 minutes cache
   });
 
   // Get claim history from rewards_claims
@@ -130,16 +174,22 @@ export function useRewards() {
   const userShareToday = poolTotalToday > 0 ? userVolumeToday / poolTotalToday : 0;
   const estimatedRewards = userShareToday * DAILY_POOL;
 
-  // CLAIMABLE rewards (from snapshot, with expiry check)
-  const claimableRewards = claimableSnapshot?.reward_amount || 0;
-  const claimableDate = claimableSnapshot?.reward_date || null;
-  const expiresAt = claimableSnapshot?.expires_at || null;
-  const hasClaimableRewards = claimableRewards > 0 && !claimableSnapshot?.is_claimed;
+  // Calculate CLAIMABLE rewards (yesterday's trading, after 03:10 UTC)
+  const userVolumeYesterday = yesterdayStats?.total_counted_volume || 0;
+  const poolTotalYesterday = totalVolumeYesterday || 0;
+  const userShareYesterday = poolTotalYesterday > 0 ? userVolumeYesterday / poolTotalYesterday : 0;
+  const claimableRewards = userShareYesterday * DAILY_POOL;
+  
+  const withinClaimWindow = isWithinClaimWindow();
+  const expiresAt = getExpiryTime();
+  const hasClaimableRewards = 
+    claimableRewards > 0 && 
+    !alreadyClaimed && 
+    withinClaimWindow;
 
   // Calculate time remaining until expiry
   const getTimeRemaining = () => {
-    if (!expiresAt) return null;
-    const expiryTime = new Date(expiresAt).getTime();
+    const expiryTime = expiresAt.getTime();
     const nowTime = Date.now();
     const remaining = expiryTime - nowTime;
     if (remaining <= 0) return null;
@@ -153,15 +203,16 @@ export function useRewards() {
   const claimMutation = useMutation({
     mutationFn: async () => {
       if (!user?.id) throw new Error('Not authenticated');
-      if (!claimableSnapshot) throw new Error('No rewards to claim');
-      if (claimableSnapshot.is_claimed) throw new Error('Already claimed');
+      if (!hasClaimableRewards) throw new Error('No rewards to claim');
+      if (alreadyClaimed) throw new Error('Already claimed');
       if (claimableRewards <= 0) throw new Error('No rewards to claim');
+      if (!withinClaimWindow) throw new Error('Not within claim window');
 
       const walletAddress = profile?.linked_wallet_address || null;
 
       // Use atomic RPC function - all operations in one transaction
       const { data, error } = await supabase.rpc('claim_reward', {
-        p_snapshot_id: claimableSnapshot.id,
+        p_claim_date: yesterday,
         p_user_id: user.id,
         p_wallet_address: walletAddress,
       }) as { data: Array<{
@@ -217,7 +268,8 @@ export function useRewards() {
       };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['claimable_snapshot'] });
+      queryClient.invalidateQueries({ queryKey: ['yesterday_stats'] });
+      queryClient.invalidateQueries({ queryKey: ['reward_claimed'] });
       queryClient.invalidateQueries({ queryKey: ['rewards_history'] });
       queryClient.invalidateQueries({ queryKey: ['balances'] });
       queryClient.invalidateQueries({ queryKey: ['referral_bonus_history'] });
@@ -233,19 +285,18 @@ export function useRewards() {
     totalVolumeToday: poolTotalToday,
     userShareToday,
     estimatedRewards,
-    // Claimable (from snapshot with 24h expiry)
+    // Claimable (yesterday's trading, after 03:10 UTC)
     claimableRewards,
-    claimableDate,
+    claimableDate: yesterday,
     hasClaimableRewards,
-    claimableSnapshot,
-    expiresAt, // NEW: expiry timestamp
-    getTimeRemaining, // NEW: helper function for countdown
+    expiresAt: expiresAt.toISOString(),
+    getTimeRemaining,
     // Claim action
     claim: claimMutation.mutate,
     isClaiming: claimMutation.isPending,
     claimError: claimMutation.error,
     // History
     claimHistory: claimHistory || [],
-    isLoading: snapshotLoading || historyLoading,
+    isLoading: yesterdayLoading || historyLoading,
   };
 }

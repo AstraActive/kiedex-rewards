@@ -1,4 +1,4 @@
-project_id = "ffcsrzbwbuzhboyyloam"
+project_id = "oxjkyerdjhvxcqkbrlak"
 
 [functions.get-deposit-config]
 verify_jwt = false
