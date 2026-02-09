@@ -2,7 +2,6 @@ import { memo, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import { RequireMFA } from '@/components/auth/RequireMFA';
-import { RequireWallet } from '@/components/auth/RequireWallet';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CountdownTimer } from '@/components/shared/CountdownTimer';
@@ -172,9 +171,7 @@ export default function Tasks() {
   return (
     <RequireAuth>
       <RequireMFA>
-        <RequireWallet pageName="Tasks">
-          <TasksContent />
-        </RequireWallet>
+        <TasksContent />
       </RequireMFA>
     </RequireAuth>
   );

@@ -52,59 +52,56 @@ export function RequireWallet({ children, pageName }: RequireWalletProps) {
     return () => clearTimeout(timer);
   }, [isConnected, isReconnecting]);
 
-  const loadingScreen = (
-    <div className="min-h-[80vh] flex items-center justify-center">
-      <div className="animate-pulse text-muted-foreground">Loading...</div>
-    </div>
-  );
-
-  // Show loading during wallet reconnection (tab switch, page reload)
+  // Show simple loading during wallet reconnection (tab switch, etc.)
   if (isReconnecting) {
-    return loadingScreen;
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center">
+        <div className="animate-pulse text-muted-foreground">Loading...</div>
+      </div>
+    );
   }
 
-  // Show loading during initial profile fetch
+  // Show loading screen only during initial profile fetch
+  // This should be very quick - don't block if wallet is already known to be linked
   if (isLoadingLinkedWallet) {
-    return loadingScreen;
+    return <ConnectWalletScreen pageName={pageName} />;
   }
 
-  // ─── USER ALREADY HAS A LINKED WALLET (verified before) ───
-  // linkedWalletAddress is the source of truth - if set, user is verified.
-  // They do NOT need an active wallet connection to view protected pages.
-  if (linkedWalletAddress) {
-    // If wallet IS connected, check for mismatch or errors
-    if (isConnected) {
-      if (walletMismatch) {
-        return <ConnectWalletScreen pageName={pageName} />;
-      }
-      if (walletLinkError) {
-        return <ConnectWalletScreen pageName={pageName} />;
-      }
-      if (isWrongNetwork) {
-        return <ConnectWalletScreen pageName={pageName} />;
-      }
-    }
-    // User is verified - let them through regardless of connection state
-    return <>{children}</>;
+  // Block if wallet mismatch - user connected wrong wallet
+  if (walletMismatch) {
+    return <ConnectWalletScreen pageName={pageName} />;
   }
 
-  // ─── FIRST-TIME USER - NO LINKED WALLET YET ───
-  // These users must connect and link their wallet for the first time.
+  // Block if wallet link error occurred
+  if (walletLinkError) {
+    return <ConnectWalletScreen pageName={pageName} />;
+  }
 
+  // Block ONLY during first-time linking (not on every reload)
   if (isLinkingWallet) {
     return <ConnectWalletScreen pageName={pageName} />;
   }
 
+  // Block if not connected (with delay to prevent flash during tab switches)
   if (!isConnected && showConnectScreen) {
     return <ConnectWalletScreen pageName={pageName} />;
   }
 
+  // Block if wrong network
   if (isWrongNetwork) {
     return <ConnectWalletScreen pageName={pageName} />;
   }
 
-  // Connected but not yet linked
-  if (!walletSaved) {
+  // Block if connected but wallet not verified yet
+  // This covers the brief moment between connecting and verifying
+  if (isConnected && !walletSaved && linkedWalletAddress) {
+    // User has a linked wallet but hasn't verified connection yet
+    return <ConnectWalletScreen pageName={pageName} />;
+  }
+
+  // Block if no linked wallet and not yet saved
+  // This is for first-time users who need to link
+  if (!walletSaved && !linkedWalletAddress && !isLoadingLinkedWallet) {
     return <ConnectWalletScreen pageName={pageName} />;
   }
 

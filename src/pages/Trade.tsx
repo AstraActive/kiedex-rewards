@@ -3,7 +3,6 @@ import { useSearchParams } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import { RequireMFA } from '@/components/auth/RequireMFA';
-import { RequireWallet } from '@/components/auth/RequireWallet';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PriceChart } from '@/components/market/PriceChart';
@@ -149,9 +148,7 @@ export default function Trade() {
   return (
     <RequireAuth>
       <RequireMFA>
-        <RequireWallet pageName="Trading">
-          <TradeContent />
-        </RequireWallet>
+        <TradeContent />
       </RequireMFA>
     </RequireAuth>
   );

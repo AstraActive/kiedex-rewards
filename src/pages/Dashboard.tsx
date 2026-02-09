@@ -5,7 +5,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import { RequireMFA } from '@/components/auth/RequireMFA';
-import { RequireWallet } from '@/components/auth/RequireWallet';
 import { PriceCardList } from '@/components/market/PriceCard';
 import { PriceChart } from '@/components/market/PriceChart';
 import { PositionsTable } from '@/components/trading/PositionsTable';
@@ -225,9 +224,7 @@ export default function Dashboard() {
   return (
     <RequireAuth>
       <RequireMFA>
-        <RequireWallet>
-          <DashboardContent />
-        </RequireWallet>
+        <DashboardContent />
       </RequireMFA>
     </RequireAuth>
   );

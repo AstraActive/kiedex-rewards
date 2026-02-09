@@ -34,8 +34,6 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const hasLinkedThisSessionRef = useRef(false);
   // Ref to track the address we last processed to avoid re-processing
   const lastProcessedAddressRef = useRef<string | null>(null);
-  // Ref to track if we were just reconnecting to avoid false disconnection resets
-  const wasReconnectingRef = useRef(false);
 
   const isWrongNetwork = isConnected && chainId !== BASE_CHAIN_ID;
   const isWalletRequired = !!user && !isConnected;
@@ -137,43 +135,16 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   // Handle wallet connection and linking
   useEffect(() => {
     const handleWalletConnection = async () => {
-      console.log('[WalletContext] Connection state:', {
-        isConnected,
-        isReconnecting,
-        address: address ? '0x...' + address.slice(-4) : null,
-        walletSaved,
-        profileLoaded,
-        linkedWalletAddress: linkedWalletAddress ? '0x...' + linkedWalletAddress.slice(-4) : null,
-      });
-
-      // Don't reset wallet states during reconnection (page reload, tab switch)
-      if (isReconnecting) {
-        console.log('[WalletContext] Skipping - wallet is reconnecting');
-        wasReconnectingRef.current = true;
-        return;
-      }
+      // Skip during reconnection (page reload, tab switch)
+      if (isReconnecting) return;
 
       // Reset states when disconnected
-      // BUT: Skip reset if we just transitioned from reconnecting (wagmi shows brief disconnect)
       if (!isConnected || !address) {
-        if (wasReconnectingRef.current) {
-          console.log('[WalletContext] Skipping disconnect reset - just finished reconnecting');
-          // Don't clear the flag yet - wait until we're actually reconnected
-          return;
-        }
-        
-        console.log('[WalletContext] Wallet disconnected - resetting states');
         setWalletSaved(false);
         setWalletMismatch(false);
         setWalletLinkError(null);
         lastProcessedAddressRef.current = null;
         return;
-      }
-      
-      // Clear the reconnecting flag only when we're successfully reconnected
-      if (wasReconnectingRef.current) {
-        console.log('[WalletContext] Reconnection complete - clearing reconnecting flag');
-        wasReconnectingRef.current = false;
       }
 
       // CRITICAL: Wait for profile to be loaded before doing anything

@@ -1,7 +1,6 @@
 import { AppLayout } from '@/components/layout/AppLayout';
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import { RequireMFA } from '@/components/auth/RequireMFA';
-import { RequireWallet } from '@/components/auth/RequireWallet';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -307,9 +306,7 @@ export default function Rewards() {
   return (
     <RequireAuth>
       <RequireMFA>
-        <RequireWallet pageName="Rewards">
-          <RewardsContent />
-        </RequireWallet>
+        <RewardsContent />
       </RequireMFA>
     </RequireAuth>
   );
