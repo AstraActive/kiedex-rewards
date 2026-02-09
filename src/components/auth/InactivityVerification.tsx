@@ -10,14 +10,17 @@ import { Button } from '@/components/ui/button';
 const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes
 const ACTIVITY_CHECK_INTERVAL = 60 * 1000; // Check every minute
 const SESSION_KEY = 'kiedex_last_activity';
+const VERIFIED_SESSION_KEY = 'kiedex_wallet_verified';
 
 /**
- * InactivityVerification - Global component that monitors user activity
- * and prompts wallet verification after prolonged inactivity.
+ * InactivityVerification - Global component that:
+ * 1. Requires wallet verification on every sign-in (once per session)
+ * 2. Re-prompts after 30 minutes of inactivity
  * 
  * - User already has a permanent wallet linked at account creation
- * - No page requires active wallet connection
- * - After 30 min inactivity, user must reconnect same wallet to verify identity
+ * - On sign-in, user must connect same wallet to verify identity
+ * - After verification, user can browse freely
+ * - After 30 min inactivity, must re-verify
  */
 export function InactivityVerification() {
   const { user } = useAuth();
@@ -25,8 +28,29 @@ export function InactivityVerification() {
   const { address, isConnected } = useAccount();
   const [needsVerification, setNeedsVerification] = useState(false);
   const [walletMismatch, setWalletMismatch] = useState(false);
+  const [verificationReason, setVerificationReason] = useState<'sign-in' | 'inactivity'>('sign-in');
   const lastActivityRef = useRef(Date.now());
   const checkIntervalRef = useRef<ReturnType<typeof setInterval>>();
+
+  // Check if user has verified wallet this session
+  const isSessionVerified = useCallback(() => {
+    try {
+      return sessionStorage.getItem(VERIFIED_SESSION_KEY) === user?.id;
+    } catch {
+      return false;
+    }
+  }, [user?.id]);
+
+  // Mark session as verified
+  const markSessionVerified = useCallback(() => {
+    try {
+      if (user?.id) {
+        sessionStorage.setItem(VERIFIED_SESSION_KEY, user.id);
+      }
+    } catch {
+      // Ignore
+    }
+  }, [user?.id]);
 
   // Update last activity timestamp
   const updateActivity = useCallback(() => {
@@ -53,25 +77,35 @@ export function InactivityVerification() {
     }
   }, [user, linkedWalletAddress]);
 
-  // Restore last activity from localStorage on mount
+  // On mount: check if user needs sign-in verification or inactivity re-verification
   useEffect(() => {
+    if (!user || !linkedWalletAddress) return;
+
+    // Check 1: Has user verified wallet this session?
+    if (!isSessionVerified()) {
+      setNeedsVerification(true);
+      setVerificationReason('sign-in');
+      return;
+    }
+
+    // Check 2: Has inactivity timeout expired?
     try {
       const stored = localStorage.getItem(SESSION_KEY);
       if (stored) {
         const storedTime = parseInt(stored, 10);
         if (!isNaN(storedTime)) {
           lastActivityRef.current = storedTime;
-          // Check immediately if session already expired
           const elapsed = Date.now() - storedTime;
-          if (elapsed >= INACTIVITY_TIMEOUT && user && linkedWalletAddress) {
+          if (elapsed >= INACTIVITY_TIMEOUT) {
             setNeedsVerification(true);
+            setVerificationReason('inactivity');
           }
         }
       }
     } catch {
       // Ignore
     }
-  }, [user, linkedWalletAddress]);
+  }, [user, linkedWalletAddress, isSessionVerified]);
 
   // Track user activity events
   useEffect(() => {
@@ -117,12 +151,13 @@ export function InactivityVerification() {
       // Correct wallet - verification passed
       setNeedsVerification(false);
       setWalletMismatch(false);
+      markSessionVerified();
       updateActivity();
     } else {
       // Wrong wallet connected
       setWalletMismatch(true);
     }
-  }, [needsVerification, isConnected, address, linkedWalletAddress, updateActivity]);
+  }, [needsVerification, isConnected, address, linkedWalletAddress, updateActivity, markSessionVerified]);
 
   // Don't render anything if:
   // - No user logged in
@@ -141,9 +176,13 @@ export function InactivityVerification() {
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
             <Shield className="h-8 w-8 text-primary" />
           </div>
-          <CardTitle className="text-xl">Session Verification Required</CardTitle>
+          <CardTitle className="text-xl">
+            {verificationReason === 'sign-in' ? 'Wallet Verification' : 'Session Verification Required'}
+          </CardTitle>
           <CardDescription>
-            You've been inactive for a while. Please verify your identity by connecting your wallet.
+            {verificationReason === 'sign-in'
+              ? 'Please verify your identity by connecting your linked wallet.'
+              : "You've been inactive for a while. Please verify your identity by connecting your wallet."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
