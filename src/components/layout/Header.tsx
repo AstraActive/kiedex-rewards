@@ -17,7 +17,7 @@ import {
 
 export function Header() {
   const { user, signOut } = useAuth();
-  const { isConnected, isWrongNetwork, address } = useWallet();
+  const { isConnected, isWrongNetwork, address, isReconnecting, linkedWalletAddress } = useWallet();
   const { disconnect } = useDisconnect();
 
   const desktopNavLinks = user ? [
@@ -123,6 +123,14 @@ export function Header() {
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
+              ) : isReconnecting || (linkedWalletAddress && !isConnected) ? (
+                // Show linked wallet address while reconnecting to prevent flash
+                <Button variant="outline" size="sm" className="gap-2 font-mono text-xs opacity-60">
+                  <span className="px-1.5 py-0.5 bg-primary/10 text-primary rounded text-[10px] font-semibold">
+                    BASE
+                  </span>
+                  {truncateAddress(linkedWalletAddress || '0x000000000000')}
+                </Button>
               ) : (
                 <ConnectButton 
                   showBalance={false}
