@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { useWallet } from '@/hooks/useWallet';
-import { useAccount } from 'wagmi';
+import { useAccount, useDisconnect } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { Shield, AlertTriangle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 
 const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes
 const ACTIVITY_CHECK_INTERVAL = 60 * 1000; // Check every minute
@@ -26,9 +25,12 @@ export function InactivityVerification() {
   const { user } = useAuth();
   const { linkedWalletAddress, isLoadingLinkedWallet } = useWallet();
   const { address, isConnected } = useAccount();
+  const { disconnect } = useDisconnect();
   const [needsVerification, setNeedsVerification] = useState(false);
   const [walletMismatch, setWalletMismatch] = useState(false);
   const [verificationReason, setVerificationReason] = useState<'sign-in' | 'inactivity'>('sign-in');
+  // Track if we disconnected the wallet for sign-in verification
+  const [disconnectedForVerification, setDisconnectedForVerification] = useState(false);
   const lastActivityRef = useRef(Date.now());
   const checkIntervalRef = useRef<ReturnType<typeof setInterval>>();
 
@@ -85,6 +87,11 @@ export function InactivityVerification() {
     if (!isSessionVerified()) {
       setNeedsVerification(true);
       setVerificationReason('sign-in');
+      // Disconnect wallet so user must freshly reconnect to verify
+      if (isConnected && !disconnectedForVerification) {
+        disconnect();
+        setDisconnectedForVerification(true);
+      }
       return;
     }
 
@@ -105,7 +112,7 @@ export function InactivityVerification() {
     } catch {
       // Ignore
     }
-  }, [user, linkedWalletAddress, isSessionVerified]);
+  }, [user, linkedWalletAddress, isSessionVerified, isConnected, disconnect, disconnectedForVerification]);
 
   // Track user activity events
   useEffect(() => {
