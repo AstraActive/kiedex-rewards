@@ -34,6 +34,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const hasLinkedThisSessionRef = useRef(false);
   // Ref to track the address we last processed to avoid re-processing
   const lastProcessedAddressRef = useRef<string | null>(null);
+  // Ref to track if we were just reconnecting to avoid false disconnection resets
+  const wasReconnectingRef = useRef(false);
 
   const isWrongNetwork = isConnected && chainId !== BASE_CHAIN_ID;
   const isWalletRequired = !!user && !isConnected;
@@ -147,11 +149,19 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       // Don't reset wallet states during reconnection (page reload, tab switch)
       if (isReconnecting) {
         console.log('[WalletContext] Skipping - wallet is reconnecting');
+        wasReconnectingRef.current = true;
         return;
       }
 
       // Reset states when disconnected
+      // BUT: Skip reset if we just transitioned from reconnecting (wagmi shows brief disconnect)
       if (!isConnected || !address) {
+        if (wasReconnectingRef.current) {
+          console.log('[WalletContext] Skipping disconnect reset - just finished reconnecting');
+          wasReconnectingRef.current = false;
+          return;
+        }
+        
         console.log('[WalletContext] Wallet disconnected - resetting states');
         setWalletSaved(false);
         setWalletMismatch(false);
@@ -159,6 +169,9 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         lastProcessedAddressRef.current = null;
         return;
       }
+      
+      // Clear the reconnecting flag when we're connected (normal flow)
+      wasReconnectingRef.current = false;
 
       // CRITICAL: Wait for profile to be loaded before doing anything
       if (!user || !profileLoaded || isWrongNetwork) {
