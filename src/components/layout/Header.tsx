@@ -17,7 +17,7 @@ import {
 
 export function Header() {
   const { user, signOut } = useAuth();
-  const { isConnected, isWrongNetwork, address, isReconnecting, linkedWalletAddress } = useWallet();
+  const { isConnected, isWrongNetwork, address, linkedWalletAddress } = useWallet();
   const { disconnect } = useDisconnect();
 
   const desktopNavLinks = user ? [
@@ -35,8 +35,9 @@ export function Header() {
   ];
 
   const copyAddress = () => {
-    if (address) {
-      navigator.clipboard.writeText(address);
+    const addr = address || linkedWalletAddress;
+    if (addr) {
+      navigator.clipboard.writeText(addr);
       toast.success('Address copied!');
     }
   };
@@ -93,44 +94,38 @@ export function Header() {
                 <span className="hidden sm:inline text-xs text-destructive">Wrong Network</span>
               )}
 
-              {/* Wallet Section with Enhanced Dropdown */}
-              {isConnected && address ? (
+              {/* Wallet Section - always show linked wallet address */}
+              {linkedWalletAddress ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm" className="gap-2 font-mono text-xs">
                       <span className="px-1.5 py-0.5 bg-primary/10 text-primary rounded text-[10px] font-semibold">
                         BASE
                       </span>
-                      {truncateAddress(address)}
+                      {truncateAddress(address || linkedWalletAddress)}
                       <ChevronDown className="h-3 w-3" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48 bg-popover border-border">
                     <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                      Connected to Base
+                      {isConnected ? 'Connected to Base' : 'Linked Wallet'}
                     </div>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={copyAddress} className="gap-2 cursor-pointer">
                       <Copy className="h-4 w-4" />
                       Copy Address
                     </DropdownMenuItem>
-                    <DropdownMenuItem 
-                      onClick={() => disconnect()} 
-                      className="gap-2 cursor-pointer text-destructive focus:text-destructive"
-                    >
-                      <LogOut className="h-4 w-4" />
-                      Disconnect
-                    </DropdownMenuItem>
+                    {isConnected && (
+                      <DropdownMenuItem 
+                        onClick={() => disconnect()} 
+                        className="gap-2 cursor-pointer text-destructive focus:text-destructive"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        Disconnect
+                      </DropdownMenuItem>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
-              ) : isReconnecting || (linkedWalletAddress && !isConnected) ? (
-                // Show linked wallet address while reconnecting to prevent flash
-                <Button variant="outline" size="sm" className="gap-2 font-mono text-xs opacity-60">
-                  <span className="px-1.5 py-0.5 bg-primary/10 text-primary rounded text-[10px] font-semibold">
-                    BASE
-                  </span>
-                  {truncateAddress(linkedWalletAddress || '0x000000000000')}
-                </Button>
               ) : (
                 <ConnectButton 
                   showBalance={false}
