@@ -19,7 +19,7 @@ export function useDailyBonus() {
       
       const { data, error } = await supabase
         .from('bonus_claims')
-        .select('created_at')
+        .select('created_at, claim_date')
         .eq('user_id', user.id)
         .eq('bonus_type', 'DAILY_OIL')
         .order('created_at', { ascending: false })
@@ -33,17 +33,26 @@ export function useDailyBonus() {
     staleTime: 30_000,
   });
 
-  // Calculate time until next claim
+  // Calculate if user can claim today
   const now = new Date();
-  const lastClaimTime = lastClaim?.created_at ? new Date(lastClaim.created_at) : null;
-  const nextClaimTime = lastClaimTime 
-    ? new Date(lastClaimTime.getTime() + COOLDOWN_HOURS * 60 * 60 * 1000)
-    : null;
+  const today = now.toISOString().split('T')[0]; // YYYY-MM-DD
+  const lastClaimDate = lastClaim?.claim_date;
   
-  const canClaim = !lastClaimTime || now >= nextClaimTime!;
-  const timeUntilNextClaim = nextClaimTime && !canClaim
-    ? Math.max(0, nextClaimTime.getTime() - now.getTime())
-    : 0;
+  // User can claim if they haven't claimed today
+  const canClaim = !lastClaimDate || lastClaimDate !== today;
+  
+  // Calculate time until next claim (midnight UTC)
+  const getTimeUntilMidnight = () => {
+    if (canClaim) return 0;
+    
+    const tomorrow = new Date(now);
+    tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+    tomorrow.setUTCHours(0, 0, 0, 0);
+    
+    return Math.max(0, tomorrow.getTime() - now.getTime());
+  };
+  
+  const timeUntilNextClaim = getTimeUntilMidnight();
 
   // Claim mutation
   const claimMutation = useMutation({
@@ -51,13 +60,16 @@ export function useDailyBonus() {
       if (!user?.id) throw new Error('Not authenticated');
       if (!canClaim) throw new Error('Daily bonus already claimed');
 
-      // Insert bonus claim
+      // Insert bonus claim with today's date
+      const today = new Date().toISOString().split('T')[0]; // Get YYYY-MM-DD format
+      
       const { error: claimError } = await supabase
         .from('bonus_claims')
         .insert({
           user_id: user.id,
           bonus_type: 'DAILY_OIL',
           amount_oil: DAILY_BONUS_AMOUNT,
+          claim_date: today,
         });
 
       if (claimError) {
@@ -102,7 +114,7 @@ export function useDailyBonus() {
       return { amount: DAILY_BONUS_AMOUNT };
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['daily_bonus'] });
+      queryClient.invalidateQueries({ queryKey: ['daily_bonus', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['balances'] });
       toast({
         title: "Daily Bonus Claimed!",
