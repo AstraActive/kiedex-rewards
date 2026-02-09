@@ -40,14 +40,41 @@ Deno.serve(async (req) => {
       )
     }
 
-    // Get admin wallet address from environment
-    const adminWallet = Deno.env.get('ADMIN_FEE_WALLET_ADDRESS')
-    
-    if (!adminWallet) {
-      console.error('ADMIN_FEE_WALLET_ADDRESS not configured')
+    // Get deposit configuration from database
+    const { data: configData, error: configError } = await supabase
+      .from('system_config')
+      .select('key, value')
+      .in('key', [
+        'deposit_admin_wallet',
+        'deposit_chain_id',
+        'deposit_min_amount',
+        'deposit_conversion_rate'
+      ])
+
+    if (configError) {
+      console.error('Failed to fetch deposit config:', configError)
       return new Response(
-        JSON.stringify({ error: 'Service configuration error' }),
+        JSON.stringify({ error: 'Failed to fetch configuration' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    // Parse config into object
+    const config: Record<string, string> = {}
+    configData?.forEach(item => {
+      config[item.key] = item.value
+    })
+
+    const adminWallet = config['deposit_admin_wallet']
+    const chainId = parseInt(config['deposit_chain_id'] || '8453')
+    const minDeposit = config['deposit_min_amount'] || '0.00000001'
+    const conversionRate = parseInt(config['deposit_conversion_rate'] || '100000000')
+    
+    if (!adminWallet || adminWallet === '0x0000000000000000000000000000000000000000') {
+      console.error('Admin wallet not configured in system_config')
+      return new Response(
+        JSON.stringify({ error: 'Deposit system not configured. Please contact admin.' }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
@@ -56,9 +83,9 @@ Deno.serve(async (req) => {
     return new Response(
       JSON.stringify({ 
         adminWallet,
-        chainId: 8453, // Base mainnet
-        minDeposit: '0.00000001', // Minimum ETH deposit
-        conversionRate: 100000000, // 1 ETH = 100,000,000 Oil
+        chainId,
+        minDeposit,
+        conversionRate,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
