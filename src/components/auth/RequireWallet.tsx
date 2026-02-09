@@ -37,7 +37,6 @@ export function RequireWallet({ children, pageName }: RequireWalletProps) {
     });
   }, [pageName, address, isConnected, isReconnecting, walletSaved, isLoadingLinkedWallet, linkedWalletAddress]);
 
-  
   useEffect(() => {
     // If wallet is reconnecting or connected, don't show connect screen
     if (isReconnecting || isConnected) {
@@ -93,28 +92,7 @@ export function RequireWallet({ children, pageName }: RequireWalletProps) {
     return <ConnectWalletScreen pageName={pageName} />;
   }
 
-  // Block if connected but wallet not verified yet OR session expired
-  // This covers the brief moment between connecting and verifying, or when session expires
-  if (!walletSaved && linkedWalletAddress) {
-    // User has a linked wallet but hasn't verified connection yet
-    return <ConnectWalletScreen pageName={pageName} />;
-  }
-
-  // Block if no linked wallet and not yet saved
-  // This is for first-time users who need to link
-  if (!walletSaved && !linkedWalletAddress) {
-    return <ConnectWalletScreen pageName={pageName} />;
-  }
-
-  // Block if session has expired - require re-verification
-  // Don't block if session check is still pending (null) or if still loading wallet state
-  if (isConnected && walletSaved && sessionVerified === false && !isLoadingLinkedWallet) {
-    return <ConnectWalletScreen pageName={pageName} />;
-  }
-
-  return <>{children}</>;
-}
-
+  // Block if connected but wallet not verified yet
   // This covers the brief moment between connecting and verifying
   if (isConnected && !walletSaved && linkedWalletAddress) {
     // User has a linked wallet but hasn't verified connection yet
@@ -123,4 +101,9 @@ export function RequireWallet({ children, pageName }: RequireWalletProps) {
 
   // Block if no linked wallet and not yet saved
   // This is for first-time users who need to link
-  if (!walletSaved && !linkedWalletAddress
+  if (!walletSaved && !linkedWalletAddress && !isLoadingLinkedWallet) {
+    return <ConnectWalletScreen pageName={pageName} />;
+  }
+
+  return <>{children}</>;
+}
