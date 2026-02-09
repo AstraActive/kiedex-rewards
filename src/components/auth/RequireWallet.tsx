@@ -30,6 +30,19 @@ export function RequireWallet({ children, pageName }: RequireWalletProps) {
   // Add a small delay before showing connect screen to prevent flash during tab switches
   const [showConnectScreen, setShowConnectScreen] = useState(false);
 
+  // Debug logging
+  useEffect(() => {
+    console.log(`[RequireWallet ${pageName}] State:`, {
+      address,
+      isConnected,
+      isReconnecting,
+      walletSaved,
+      sessionVerified,
+      isLoadingLinkedWallet,
+      linkedWalletAddress: linkedWalletAddress ? '0x...' + linkedWalletAddress.slice(-4) : null,
+    });
+  }, [pageName, address, isConnected, isReconnecting, walletSaved, sessionVerified, isLoadingLinkedWallet, linkedWalletAddress]);
+
   // Initialize session check on first render
   useEffect(() => {
     if (address && sessionVerified === null) {

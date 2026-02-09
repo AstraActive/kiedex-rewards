@@ -135,13 +135,24 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   // Handle wallet connection and linking
   useEffect(() => {
     const handleWalletConnection = async () => {
+      console.log('[WalletContext] Connection state:', {
+        isConnected,
+        isReconnecting,
+        address: address ? '0x...' + address.slice(-4) : null,
+        walletSaved,
+        profileLoaded,
+        linkedWalletAddress: linkedWalletAddress ? '0x...' + linkedWalletAddress.slice(-4) : null,
+      });
+
       // Don't reset wallet states during reconnection (page reload, tab switch)
       if (isReconnecting) {
+        console.log('[WalletContext] Skipping - wallet is reconnecting');
         return;
       }
 
       // Reset states when disconnected
       if (!isConnected || !address) {
+        console.log('[WalletContext] Wallet disconnected - resetting states');
         setWalletSaved(false);
         setWalletMismatch(false);
         setWalletLinkError(null);
@@ -151,6 +162,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
       // CRITICAL: Wait for profile to be loaded before doing anything
       if (!user || !profileLoaded || isWrongNetwork) {
+        console.log('[WalletContext] Waiting for:', { hasUser: !!user, profileLoaded, isWrongNetwork });
         return;
       }
 
