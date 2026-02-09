@@ -1,6 +1,6 @@
 import { useWallet } from '@/hooks/useWallet';
 import { ConnectWalletScreen } from '@/components/wallet/ConnectWalletScreen';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { isWalletSessionValid, setWalletVerified, updateWalletActivity } from '@/lib/walletSession';
 import { useAccount } from 'wagmi';
 
@@ -24,30 +24,67 @@ export function RequireWallet({ children, pageName }: RequireWalletProps) {
   } = useWallet();
   
   // Track if wallet has been verified this session
-  const [sessionVerified, setSessionVerified] = useState(false);
+  const [sessionVerified, setSessionVerified] = useState<boolean | null>(null);
+  const lastAddressRef = useRef<string | null>(null);
   
   // Add a small delay before showing connect screen to prevent flash during tab switches
   const [showConnectScreen, setShowConnectScreen] = useState(false);
-  
-  // Check session validity when component mounts or address changes
+
+  // Initialize session check on first render
   useEffect(() => {
-    if (address && isConnected && walletSaved && !walletMismatch) {
+    if (address && sessionVerified === null) {
+      // Check if there's a valid session in localStorage
       const isValid = isWalletSessionValid(address);
       setSessionVerified(isValid);
-      
-      // If wallet is connected and saved, mark as verified for this session
-      if (!isValid) {
-        setWalletVerified(address);
-        setSessionVerified(true);
-      }
-    } else {
-      setSessionVerified(false);
     }
-  }, [address, isConnected, walletSaved, walletMismatch]);
+  }, [address, sessionVerified]);
+  
+  // Check and set session validity - only when stable conditions are met
+  useEffect(() => {
+    // Skip if still loading or wallet state is unstable
+    if (isLoadingLinkedWallet || isReconnecting) {
+      return;
+    }
+
+    // If address changed, clear previous session
+    if (address && lastAddressRef.current && address !== lastAddressRef.current) {
+      setSessionVerified(false);
+      lastAddressRef.current = address;
+      return;
+    }
+
+    // If we have a stable connected and saved wallet
+    if (address && isConnected && walletSaved && !walletMismatch) {
+      lastAddressRef.current = address;
+      
+      // Check if session is already valid
+      const isValid = isWalletSessionValid(address);
+      
+      if (isValid) {
+        // Session exists and is valid
+        if (sessionVerified !== true) {
+          setSessionVerified(true);
+        }
+      } else {
+        // No valid session, create new one
+        setWalletVerified(address);
+        if (sessionVerified !== true) {
+          setSessionVerified(true);
+        }
+      }
+    } else if (!isConnected || walletMismatch) {
+      // Only clear session if actually disconnected or there's a mismatch
+      if (sessionVerified !== false) {
+        setSessionVerified(false);
+      }
+      lastAddressRef.current = null;
+    }
+    // Don't clear session just because walletSaved is temporarily false during loading
+  }, [address, isConnected, walletSaved, walletMismatch, isLoadingLinkedWallet, isReconnecting, sessionVerified]);
   
   // Update activity on any interaction to keep session alive
   useEffect(() => {
-    if (sessionVerified && address) {
+    if (sessionVerified === true && address) {
       const updateActivity = () => updateWalletActivity(address);
       
       // Update on mouse move, key press, or touch
@@ -128,13 +165,14 @@ export function RequireWallet({ children, pageName }: RequireWalletProps) {
   }
 
   // Block if no linked wallet and not yet saved
-  // This is for first-time users who need to link
-  if (!walletSaved && !linkedWalletAddress) {
+  // This is for firsession check is still pending (null) or if still loading wallet state
+  if (isConnected && walletSaved && sessionVerified === false
     return <ConnectWalletScreen pageName={pageName} />;
   }
 
   // Block if session has expired - require re-verification
-  if (isConnected && walletSaved && !sessionVerified) {
+  // Don't block if still loading wallet state
+  if (isConnected && walletSaved && !sessionVerified && !isLoadingLinkedWallet) {
     return <ConnectWalletScreen pageName={pageName} />;
   }
 
