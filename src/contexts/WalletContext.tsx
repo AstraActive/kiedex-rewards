@@ -158,7 +158,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       if (!isConnected || !address) {
         if (wasReconnectingRef.current) {
           console.log('[WalletContext] Skipping disconnect reset - just finished reconnecting');
-          wasReconnectingRef.current = false;
+          // Don't clear the flag yet - wait until we're actually reconnected
           return;
         }
         
@@ -170,8 +170,11 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         return;
       }
       
-      // Clear the reconnecting flag when we're connected (normal flow)
-      wasReconnectingRef.current = false;
+      // Clear the reconnecting flag only when we're successfully reconnected
+      if (wasReconnectingRef.current) {
+        console.log('[WalletContext] Reconnection complete - clearing reconnecting flag');
+        wasReconnectingRef.current = false;
+      }
 
       // CRITICAL: Wait for profile to be loaded before doing anything
       if (!user || !profileLoaded || isWrongNetwork) {
