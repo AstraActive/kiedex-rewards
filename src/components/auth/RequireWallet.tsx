@@ -1,7 +1,6 @@
 import { useWallet } from '@/hooks/useWallet';
 import { ConnectWalletScreen } from '@/components/wallet/ConnectWalletScreen';
-import { useState, useEffect, useRef } from 'react';
-import { isWalletSessionValid, setWalletVerified, updateWalletActivity } from '@/lib/walletSession';
+import { useState, useEffect } from 'react';
 import { useAccount } from 'wagmi';
 
 interface RequireWalletProps {

@@ -344,7 +344,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     };
 
     handleWalletConnection();
-  }, [user, isConnected, address, chainId, linkedWalletAddress, profileLoaded, isWrongNetwork, toast, isAlreadyLinkedInSession, markLinkedInSession, isReconnecting]);
+  }, [user, isConnected, address, chainId, linkedWalletAddress, profileLoaded, isWrongNetwork, walletSaved, toast, isAlreadyLinkedInSession, markLinkedInSession, isReconnecting]);
 
   const switchToBase = useCallback(() => {
     if (switchChain) {
