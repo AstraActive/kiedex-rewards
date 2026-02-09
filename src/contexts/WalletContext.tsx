@@ -135,6 +135,11 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   // Handle wallet connection and linking
   useEffect(() => {
     const handleWalletConnection = async () => {
+      // Don't reset wallet states during reconnection (page reload, tab switch)
+      if (isReconnecting) {
+        return;
+      }
+
       // Reset states when disconnected
       if (!isConnected || !address) {
         setWalletSaved(false);
@@ -327,7 +332,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     };
 
     handleWalletConnection();
-  }, [user, isConnected, address, chainId, linkedWalletAddress, profileLoaded, isWrongNetwork, toast, isAlreadyLinkedInSession, markLinkedInSession]);
+  }, [user, isConnected, address, chainId, linkedWalletAddress, profileLoaded, isWrongNetwork, toast, isAlreadyLinkedInSession, markLinkedInSession, isReconnecting]);
 
   const switchToBase = useCallback(() => {
     if (switchChain) {
