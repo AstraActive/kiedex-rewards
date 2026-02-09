@@ -29,12 +29,11 @@ Deno.serve(async (req) => {
       { global: { headers: { Authorization: authHeader } } }
     )
 
-    // Verify JWT
-    const token = authHeader.replace('Bearer ', '')
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token)
+    // Verify user
+    const { data: { user }, error: userError } = await supabase.auth.getUser()
     
-    if (claimsError || !claimsData?.claims) {
-      console.log('JWT verification failed:', claimsError)
+    if (userError || !user) {
+      console.log('User verification failed:', userError)
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -52,7 +51,7 @@ Deno.serve(async (req) => {
       )
     }
 
-    console.log('Returning deposit config for user:', claimsData.claims.sub)
+    console.log('Returning deposit config for user:', user.id)
 
     return new Response(
       JSON.stringify({ 
