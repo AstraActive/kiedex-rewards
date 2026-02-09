@@ -165,14 +165,14 @@ export function RequireWallet({ children, pageName }: RequireWalletProps) {
   }
 
   // Block if no linked wallet and not yet saved
-  // This is for firsession check is still pending (null) or if still loading wallet state
-  if (isConnected && walletSaved && sessionVerified === false
+  // This is for first-time users who need to link
+  if (!walletSaved && !linkedWalletAddress) {
     return <ConnectWalletScreen pageName={pageName} />;
   }
 
   // Block if session has expired - require re-verification
-  // Don't block if still loading wallet state
-  if (isConnected && walletSaved && !sessionVerified && !isLoadingLinkedWallet) {
+  // Don't block if session check is still pending (null) or if still loading wallet state
+  if (isConnected && walletSaved && sessionVerified === false && !isLoadingLinkedWallet) {
     return <ConnectWalletScreen pageName={pageName} />;
   }
 
