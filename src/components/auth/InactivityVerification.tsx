@@ -3,34 +3,33 @@ import { useAuth } from '@/hooks/useAuth';
 import { useWallet } from '@/hooks/useWallet';
 import { useAccount, useDisconnect } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { Shield, AlertTriangle } from 'lucide-react';
+import { Shield, AlertTriangle, LogOut, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes
 const ACTIVITY_CHECK_INTERVAL = 60 * 1000; // Check every minute
 const SESSION_KEY = 'kiedex_last_activity';
 const VERIFIED_SESSION_KEY = 'kiedex_wallet_verified';
 
+function formatAddress(addr: string): string {
+  return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
+}
+
 /**
  * InactivityVerification - Global component that:
  * 1. Requires wallet verification on every sign-in (once per session)
  * 2. Re-prompts after 30 minutes of inactivity
- * 
- * - User already has a permanent wallet linked at account creation
- * - On sign-in, user must connect same wallet to verify identity
- * - After verification, user can browse freely
- * - After 30 min inactivity, must re-verify
  */
 export function InactivityVerification() {
-  const { user } = useAuth();
-  const { linkedWalletAddress, isLoadingLinkedWallet } = useWallet();
+  const { user, signOut } = useAuth();
+  const { linkedWalletAddress, isLoadingLinkedWallet, disconnectWallet, resetWalletConnection } = useWallet();
   const { address, isConnected } = useAccount();
   const { disconnect } = useDisconnect();
   const [needsVerification, setNeedsVerification] = useState(false);
   const [walletMismatch, setWalletMismatch] = useState(false);
   const [verificationReason, setVerificationReason] = useState<'sign-in' | 'inactivity'>('sign-in');
-  // Track if we disconnected the wallet for sign-in verification
-  const [disconnectedForVerification, setDisconnectedForVerification] = useState(false);
+  const hasDisconnectedRef = useRef(false);
   const lastActivityRef = useRef(Date.now());
   const checkIntervalRef = useRef<ReturnType<typeof setInterval>>();
 
@@ -67,94 +66,63 @@ export function InactivityVerification() {
 
   // Check if session has expired due to inactivity
   const checkInactivity = useCallback(() => {
-    // Only check for logged-in users with a linked wallet
     if (!user || !linkedWalletAddress) return;
-
-    const now = Date.now();
-    const lastActivity = lastActivityRef.current;
-    const elapsed = now - lastActivity;
-
+    const elapsed = Date.now() - lastActivityRef.current;
     if (elapsed >= INACTIVITY_TIMEOUT) {
       setNeedsVerification(true);
+      setVerificationReason('inactivity');
+      setWalletMismatch(false);
+      hasDisconnectedRef.current = false;
     }
   }, [user, linkedWalletAddress]);
 
-  // On mount: check if user needs sign-in verification or inactivity re-verification
+  // On mount / user change: check if sign-in verification needed
   useEffect(() => {
-    if (!user || !linkedWalletAddress) return;
+    if (!user || !linkedWalletAddress || isLoadingLinkedWallet) return;
 
-    // Check 1: Has user verified wallet this session?
     if (!isSessionVerified()) {
       setNeedsVerification(true);
       setVerificationReason('sign-in');
-      // Disconnect wallet so user must freshly reconnect to verify
-      if (isConnected && !disconnectedForVerification) {
-        disconnect();
-        setDisconnectedForVerification(true);
-      }
-      return;
-    }
-
-    // Check 2: Has inactivity timeout expired?
-    try {
-      const stored = localStorage.getItem(SESSION_KEY);
-      if (stored) {
-        const storedTime = parseInt(stored, 10);
-        if (!isNaN(storedTime)) {
-          lastActivityRef.current = storedTime;
-          const elapsed = Date.now() - storedTime;
-          if (elapsed >= INACTIVITY_TIMEOUT) {
-            setNeedsVerification(true);
-            setVerificationReason('inactivity');
+      setWalletMismatch(false);
+      hasDisconnectedRef.current = false;
+    } else {
+      // Check inactivity timeout
+      try {
+        const stored = localStorage.getItem(SESSION_KEY);
+        if (stored) {
+          const storedTime = parseInt(stored, 10);
+          if (!isNaN(storedTime)) {
+            lastActivityRef.current = storedTime;
+            if (Date.now() - storedTime >= INACTIVITY_TIMEOUT) {
+              setNeedsVerification(true);
+              setVerificationReason('inactivity');
+              setWalletMismatch(false);
+              hasDisconnectedRef.current = false;
+            }
           }
         }
+      } catch {
+        // Ignore
       }
-    } catch {
-      // Ignore
     }
-  }, [user, linkedWalletAddress, isSessionVerified, isConnected, disconnect, disconnectedForVerification]);
+  }, [user, linkedWalletAddress, isLoadingLinkedWallet, isSessionVerified]);
 
-  // Track user activity events
+  // When verification is needed and wallet is still connected, disconnect it
+  // so user must freshly reconnect to prove ownership
   useEffect(() => {
-    if (!user || !linkedWalletAddress) return;
-
-    const events = ['mousedown', 'keydown', 'touchstart', 'scroll', 'mousemove'];
-    
-    // Throttle activity updates (max once per 10 seconds)
-    let throttleTimer: ReturnType<typeof setTimeout> | null = null;
-    const throttledUpdate = () => {
-      if (throttleTimer) return;
-      throttleTimer = setTimeout(() => {
-        throttleTimer = null;
-        if (!needsVerification) {
-          updateActivity();
-        }
-      }, 10000);
-    };
-
-    events.forEach(event => window.addEventListener(event, throttledUpdate, { passive: true }));
-
-    // Set up periodic inactivity check
-    checkIntervalRef.current = setInterval(checkInactivity, ACTIVITY_CHECK_INTERVAL);
-
-    // Initial activity timestamp
-    updateActivity();
-
-    return () => {
-      events.forEach(event => window.removeEventListener(event, throttledUpdate));
-      if (checkIntervalRef.current) clearInterval(checkIntervalRef.current);
-      if (throttleTimer) clearTimeout(throttleTimer);
-    };
-  }, [user, linkedWalletAddress, needsVerification, updateActivity, checkInactivity]);
+    if (needsVerification && isConnected && !hasDisconnectedRef.current) {
+      hasDisconnectedRef.current = true;
+      disconnect();
+    }
+  }, [needsVerification, isConnected, disconnect]);
 
   // When user connects wallet during verification, check if it matches
   useEffect(() => {
     if (!needsVerification || !isConnected || !address || !linkedWalletAddress) return;
+    // Only verify after we've disconnected (user freshly reconnected)
+    if (!hasDisconnectedRef.current) return;
 
-    const normalizedConnected = address.toLowerCase();
-    const normalizedLinked = linkedWalletAddress.toLowerCase();
-
-    if (normalizedConnected === normalizedLinked) {
+    if (address.toLowerCase() === linkedWalletAddress.toLowerCase()) {
       // Correct wallet - verification passed
       setNeedsVerification(false);
       setWalletMismatch(false);
@@ -166,55 +134,120 @@ export function InactivityVerification() {
     }
   }, [needsVerification, isConnected, address, linkedWalletAddress, updateActivity, markSessionVerified]);
 
-  // Don't render anything if:
-  // - No user logged in
-  // - No linked wallet (first-time user, handled elsewhere)
-  // - Still loading wallet info
-  // - No verification needed
+  // Track user activity events
+  useEffect(() => {
+    if (!user || !linkedWalletAddress) return;
+
+    const events = ['mousedown', 'keydown', 'touchstart', 'scroll', 'mousemove'];
+    let throttleTimer: ReturnType<typeof setTimeout> | null = null;
+    const throttledUpdate = () => {
+      if (throttleTimer) return;
+      throttleTimer = setTimeout(() => {
+        throttleTimer = null;
+        if (!needsVerification) updateActivity();
+      }, 10000);
+    };
+
+    events.forEach(event => window.addEventListener(event, throttledUpdate, { passive: true }));
+    checkIntervalRef.current = setInterval(checkInactivity, ACTIVITY_CHECK_INTERVAL);
+    if (!needsVerification) updateActivity();
+
+    return () => {
+      events.forEach(event => window.removeEventListener(event, throttledUpdate));
+      if (checkIntervalRef.current) clearInterval(checkIntervalRef.current);
+      if (throttleTimer) clearTimeout(throttleTimer);
+    };
+  }, [user, linkedWalletAddress, needsVerification, updateActivity, checkInactivity]);
+
+  // Don't render if not needed
   if (!user || !linkedWalletAddress || isLoadingLinkedWallet || !needsVerification) {
     return null;
   }
 
-  // Show verification overlay
+  // Wrong wallet connected - show mismatch screen
+  if (walletMismatch && address) {
+    return (
+      <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
+              <AlertTriangle className="h-8 w-8 text-destructive" />
+            </div>
+            <CardTitle className="text-2xl">Wrong Wallet Connected</CardTitle>
+            <CardDescription>
+              This account is linked to a different wallet
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="p-3 rounded-lg bg-muted">
+              <p className="text-xs text-muted-foreground mb-1">Linked wallet:</p>
+              <p className="font-mono text-sm font-medium text-primary">
+                {formatAddress(linkedWalletAddress)}
+              </p>
+            </div>
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+              <p className="text-xs text-muted-foreground mb-1">Currently connected:</p>
+              <p className="font-mono text-sm font-medium text-destructive">
+                {formatAddress(address)}
+              </p>
+            </div>
+
+            <p className="text-sm text-muted-foreground text-center">
+              Please disconnect and connect the correct wallet to continue.
+            </p>
+
+            <Button onClick={disconnectWallet} className="w-full">
+              Disconnect & Try Again
+            </Button>
+            <Button variant="outline" onClick={resetWalletConnection} className="w-full">
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Reset Connection
+            </Button>
+            <Button variant="ghost" onClick={signOut} className="w-full">
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Default: Connect saved wallet screen
   return (
     <div className="fixed inset-0 z-50 bg-background/95 backdrop-blur-sm flex items-center justify-center p-4">
-      <Card className="w-full max-w-md border-primary/20">
+      <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
             <Shield className="h-8 w-8 text-primary" />
           </div>
-          <CardTitle className="text-xl">
-            {verificationReason === 'sign-in' ? 'Wallet Verification' : 'Session Verification Required'}
-          </CardTitle>
+          <CardTitle className="text-2xl">Connect Your Saved Wallet</CardTitle>
           <CardDescription>
             {verificationReason === 'sign-in'
-              ? 'Please verify your identity by connecting your linked wallet.'
-              : "You've been inactive for a while. Please verify your identity by connecting your wallet."}
+              ? 'This account is linked to a specific wallet'
+              : "You've been inactive for a while. Please verify your identity."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {walletMismatch && (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
-              <AlertTriangle className="h-4 w-4 shrink-0" />
-              <span>
-                Wrong wallet connected. Please connect the wallet linked to your account: 
-                <span className="font-mono ml-1">
-                  {linkedWalletAddress.slice(0, 6)}...{linkedWalletAddress.slice(-4)}
-                </span>
-              </span>
-            </div>
-          )}
-
-          <div className="text-center text-sm text-muted-foreground">
-            Connect your linked wallet to continue:
-            <span className="block font-mono mt-1 text-foreground">
-              {linkedWalletAddress.slice(0, 6)}...{linkedWalletAddress.slice(-4)}
-            </span>
+          <div className="p-4 rounded-lg bg-muted text-center">
+            <p className="text-xs text-muted-foreground mb-2">Linked wallet address:</p>
+            <p className="font-mono text-lg font-semibold text-primary">
+              {formatAddress(linkedWalletAddress)}
+            </p>
           </div>
+
+          <p className="text-sm text-muted-foreground text-center">
+            Please connect the same wallet to continue.
+          </p>
 
           <div className="flex justify-center">
             <ConnectButton />
           </div>
+
+          <Button variant="ghost" onClick={signOut} className="w-full">
+            <LogOut className="h-4 w-4 mr-2" />
+            Sign Out
+          </Button>
         </CardContent>
       </Card>
     </div>
