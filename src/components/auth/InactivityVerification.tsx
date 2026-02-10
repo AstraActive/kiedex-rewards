@@ -147,7 +147,7 @@ export function InactivityVerification() {
 
   // Show the original ConnectWalletScreen in a fullscreen overlay
   return (
-    <div className="fixed inset-0 z-50 bg-background overflow-y-auto">
+    <div className="fixed inset-0 z-[60] bg-background overflow-y-auto flex items-center justify-center p-4">
       <ConnectWalletScreen verificationReason={verificationReason} />
     </div>
   );
