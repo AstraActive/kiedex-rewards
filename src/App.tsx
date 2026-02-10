@@ -11,6 +11,7 @@ import { config } from '@/config/wagmi';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { WalletProvider } from '@/contexts/WalletContext';
 import { InactivityVerification } from '@/components/auth/InactivityVerification';
+import { WalletGuard } from '@/components/auth/WalletGuard';
 
 // Loading component for lazy-loaded routes
 const PageLoader = () => (
@@ -73,6 +74,7 @@ const App = () => (
       <RainbowKitProvider theme={darkTheme({ accentColor: '#22c55e' })}>
         <AuthProvider>
           <WalletProvider>
+            <WalletGuard />
             <InactivityVerification />
             <TooltipProvider>
               <Toaster />
