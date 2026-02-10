@@ -17,7 +17,8 @@ import {
 
 export function Header() {
   const { user, signOut } = useAuth();
-  const { isConnected, isWrongNetwork, address, linkedWalletAddress } = useWallet();
+  const { isConnected, isWrongNetwork, address, linkedWalletAddress, isReconnecting } = useWallet();
+  const effectivelyConnected = isConnected || isReconnecting;
   const { disconnect } = useDisconnect();
 
   const desktopNavLinks = user ? [
@@ -108,14 +109,14 @@ export function Header() {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48 bg-popover border-border">
                     <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                      {isConnected ? 'Connected to Base' : 'Linked Wallet'}
+                      {effectivelyConnected ? 'Connected to Base' : 'Linked Wallet'}
                     </div>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={copyAddress} className="gap-2 cursor-pointer">
                       <Copy className="h-4 w-4" />
                       Copy Address
                     </DropdownMenuItem>
-                    {isConnected && (
+                    {effectivelyConnected && (
                       <DropdownMenuItem 
                         onClick={() => disconnect()} 
                         className="gap-2 cursor-pointer text-destructive focus:text-destructive"
