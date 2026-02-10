@@ -21,6 +21,7 @@ export function InactivityVerification() {
   const { isConnected } = useAccount();
   const { disconnect } = useDisconnect();
   const [needsVerification, setNeedsVerification] = useState(false);
+  const [verificationReason, setVerificationReason] = useState<'sign-in' | 'session-expired'>('sign-in');
   const hasDisconnectedRef = useRef(false);
   const lastActivityRef = useRef(Date.now());
   const checkIntervalRef = useRef<ReturnType<typeof setInterval>>();
@@ -61,6 +62,7 @@ export function InactivityVerification() {
     if (!user || !linkedWalletAddress) return;
     const elapsed = Date.now() - lastActivityRef.current;
     if (elapsed >= INACTIVITY_TIMEOUT) {
+      setVerificationReason('session-expired');
       setNeedsVerification(true);
       hasDisconnectedRef.current = false;
     }
@@ -71,6 +73,7 @@ export function InactivityVerification() {
     if (!user || !linkedWalletAddress || isLoadingLinkedWallet) return;
 
     if (!isSessionVerified()) {
+      setVerificationReason('sign-in');
       setNeedsVerification(true);
       hasDisconnectedRef.current = false;
     } else {
@@ -82,6 +85,7 @@ export function InactivityVerification() {
           if (!isNaN(storedTime)) {
             lastActivityRef.current = storedTime;
             if (Date.now() - storedTime >= INACTIVITY_TIMEOUT) {
+              setVerificationReason('session-expired');
               setNeedsVerification(true);
               hasDisconnectedRef.current = false;
             }
@@ -143,8 +147,8 @@ export function InactivityVerification() {
 
   // Show the original ConnectWalletScreen in a fullscreen overlay
   return (
-    <div className="fixed inset-0 z-50 bg-background">
-      <ConnectWalletScreen />
+    <div className="fixed inset-0 z-50 bg-background overflow-y-auto">
+      <ConnectWalletScreen verificationReason={verificationReason} />
     </div>
   );
 }

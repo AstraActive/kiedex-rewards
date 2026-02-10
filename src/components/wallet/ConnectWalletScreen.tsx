@@ -14,9 +14,10 @@ function formatAddress(address: string): string {
 
 interface ConnectWalletScreenProps {
   pageName?: string; // e.g., "Rewards", "Trading", etc.
+  verificationReason?: 'sign-in' | 'session-expired'; // Context for verification overlay
 }
 
-export function ConnectWalletScreen({ pageName }: ConnectWalletScreenProps = {}) {
+export function ConnectWalletScreen({ pageName, verificationReason }: ConnectWalletScreenProps = {}) {
   const { 
     isConnected, 
     isWrongNetwork, 
@@ -43,13 +44,45 @@ export function ConnectWalletScreen({ pageName }: ConnectWalletScreenProps = {})
     resetAndClearCache,
   } = useConnectionTimeout();
 
+  // Compute context-aware messages based on verificationReason
+  const getContextMessages = () => {
+    if (verificationReason === 'sign-in') {
+      return {
+        cardTitle: 'Welcome Back!',
+        cardDescription: 'Verify your identity by connecting your linked wallet',
+        warningTitle: 'Sign-In Verification',
+        warningMessage: 'For security, please connect your linked wallet to verify your identity each time you sign in.',
+        loadingTitle: 'Verifying Identity',
+        loadingDescription: 'Connecting to your linked wallet...',
+      };
+    }
+    if (verificationReason === 'session-expired') {
+      return {
+        cardTitle: 'Session Expired',
+        cardDescription: 'Your session has expired due to inactivity',
+        warningTitle: 'Inactivity Timeout',
+        warningMessage: 'You\'ve been inactive for a while. Please reconnect your wallet to resume your session.',
+        loadingTitle: 'Reconnecting Session',
+        loadingDescription: 'Reconnecting to your wallet...',
+      };
+    }
+    const pageTitle = pageName ? `${pageName} Page` : 'This Page';
+    return {
+      cardTitle: 'Connect Your Wallet to Continue',
+      cardDescription: `${pageTitle} requires wallet verification`,
+      warningTitle: 'Wallet Verification Required',
+      warningMessage: pageName
+        ? `The ${pageName} page requires your linked wallet to access your account.`
+        : 'This page requires your linked wallet to verify your identity.',
+      loadingTitle: 'Wallet Connection Required',
+      loadingDescription: `${pageTitle} requires wallet verification`,
+    };
+  };
+
+  const contextMessages = getContextMessages();
+
   // Loading state while fetching linked wallet OR wagmi is reconnecting
   if (isLoadingLinkedWallet || isReconnecting) {
-    const pageTitle = pageName ? `${pageName} Page` : 'This Page';
-    const requirementMessage = pageName 
-      ? `The ${pageName} page requires a verified wallet connection to access your account and manage your rewards.`
-      : 'This page requires a verified wallet connection.';
-
     return (
       <div className="min-h-[80vh] flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
@@ -57,9 +90,9 @@ export function ConnectWalletScreen({ pageName }: ConnectWalletScreenProps = {})
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
               <Shield className="h-8 w-8 text-primary" />
             </div>
-            <CardTitle className="text-2xl">Wallet Connection Required</CardTitle>
+            <CardTitle className="text-2xl">{contextMessages.loadingTitle}</CardTitle>
             <CardDescription>
-              {pageTitle} requires wallet verification
+              {contextMessages.loadingDescription}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -69,7 +102,7 @@ export function ConnectWalletScreen({ pageName }: ConnectWalletScreenProps = {})
                 <div className="text-sm">
                   <p className="font-medium text-blue-500 mb-1">Security Verification</p>
                   <p className="text-muted-foreground">
-                    {requirementMessage}
+                    {contextMessages.warningMessage}
                   </p>
                 </div>
               </div>
@@ -107,8 +140,6 @@ export function ConnectWalletScreen({ pageName }: ConnectWalletScreenProps = {})
 
   // Wrong network state
   if (isWrongNetwork) {
-    const pageTitle = pageName ? `${pageName} Page` : 'This Page';
-    
     return (
       <div className="min-h-[80vh] flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
@@ -118,7 +149,7 @@ export function ConnectWalletScreen({ pageName }: ConnectWalletScreenProps = {})
             </div>
             <CardTitle className="text-2xl">Wrong Network</CardTitle>
             <CardDescription>
-              {pageTitle} requires Base network
+              Please switch to Base network to continue
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -145,8 +176,6 @@ export function ConnectWalletScreen({ pageName }: ConnectWalletScreenProps = {})
 
   // Wrong wallet connected (mismatch)
   if (walletMismatch && linkedWalletAddress && address) {
-    const pageTitle = pageName ? `${pageName} Page` : 'This Page';
-    
     return (
       <div className="min-h-[80vh] flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
@@ -156,7 +185,7 @@ export function ConnectWalletScreen({ pageName }: ConnectWalletScreenProps = {})
             </div>
             <CardTitle className="text-2xl">Wrong Wallet Connected</CardTitle>
             <CardDescription>
-              {pageTitle} requires your linked wallet
+              Please connect your linked wallet to continue
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -273,11 +302,6 @@ export function ConnectWalletScreen({ pageName }: ConnectWalletScreenProps = {})
 
   // Returning user - need to connect their saved wallet
   if (linkedWalletAddress && !isConnected) {
-    const pageTitle = pageName ? `${pageName} Page` : 'This Page';
-    const requirementMessage = pageName 
-      ? `The ${pageName} page requires your linked wallet to access your account.`
-      : 'This page requires your linked wallet.';
-    
     return (
       <div className="min-h-[80vh] flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
@@ -285,9 +309,9 @@ export function ConnectWalletScreen({ pageName }: ConnectWalletScreenProps = {})
             <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
               <Shield className="h-8 w-8 text-primary" />
             </div>
-            <CardTitle className="text-2xl">Connect Your Wallet to Continue</CardTitle>
+            <CardTitle className="text-2xl">{contextMessages.cardTitle}</CardTitle>
             <CardDescription>
-              {pageTitle} requires wallet verification
+              {contextMessages.cardDescription}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -295,9 +319,9 @@ export function ConnectWalletScreen({ pageName }: ConnectWalletScreenProps = {})
               <div className="flex items-start gap-3">
                 <Shield className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
                 <div className="text-sm">
-                  <p className="font-medium text-amber-500 mb-1">Wallet Verification Required</p>
+                  <p className="font-medium text-amber-500 mb-1">{contextMessages.warningTitle}</p>
                   <p className="text-muted-foreground">
-                    {requirementMessage}
+                    {contextMessages.warningMessage}
                   </p>
                 </div>
               </div>
