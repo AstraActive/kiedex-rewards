@@ -116,6 +116,13 @@ export function InactivityVerification() {
     }
   }, [needsVerification, isConnected, disconnect]);
 
+  // Clear mismatch when wallet disconnects so user can retry
+  useEffect(() => {
+    if (!isConnected && walletMismatch) {
+      setWalletMismatch(false);
+    }
+  }, [isConnected, walletMismatch]);
+
   // When user connects wallet during verification, check if it matches
   useEffect(() => {
     if (!needsVerification || !isConnected || !address || !linkedWalletAddress) return;
