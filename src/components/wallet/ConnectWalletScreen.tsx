@@ -14,7 +14,7 @@ function formatAddress(address: string): string {
 
 interface ConnectWalletScreenProps {
   pageName?: string; // e.g., "Rewards", "Trading", etc.
-  verificationReason?: 'sign-in' | 'session-expired'; // Context for verification overlay
+  verificationReason?: 'sign-in' | 'session-expired' | 'initial-setup'; // Context for verification overlay
 }
 
 export function ConnectWalletScreen({ pageName, verificationReason }: ConnectWalletScreenProps = {}) {
@@ -46,6 +46,16 @@ export function ConnectWalletScreen({ pageName, verificationReason }: ConnectWal
 
   // Compute context-aware messages based on verificationReason
   const getContextMessages = () => {
+    if (verificationReason === 'initial-setup') {
+      return {
+        cardTitle: 'Connect Your Wallet',
+        cardDescription: 'Link a wallet to start using KieDex',
+        warningTitle: 'Wallet Required',
+        warningMessage: 'You need to connect and link a Base network wallet to access the platform. This wallet will be permanently linked to your account.',
+        loadingTitle: 'Setting Up Your Account',
+        loadingDescription: 'Connecting your wallet...',
+      };
+    }
     if (verificationReason === 'sign-in') {
       return {
         cardTitle: 'Welcome Back!',

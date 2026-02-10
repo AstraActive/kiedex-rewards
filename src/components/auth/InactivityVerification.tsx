@@ -11,8 +11,9 @@ const VERIFIED_SESSION_KEY = 'kiedex_wallet_verified';
 
 /**
  * InactivityVerification - Global component that:
- * 1. Requires wallet verification on every sign-in (once per session)
- * 2. Re-prompts after 30 minutes of inactivity
+ * 1. Forces wallet connection for new users (no wallet linked yet)
+ * 2. Requires wallet verification on every sign-in (once per session)
+ * 3. Re-prompts after 30 minutes of inactivity
  * Shows the original ConnectWalletScreen for all states.
  */
 export function InactivityVerification() {
@@ -21,7 +22,7 @@ export function InactivityVerification() {
   const { isConnected } = useAccount();
   const { disconnect } = useDisconnect();
   const [needsVerification, setNeedsVerification] = useState(false);
-  const [verificationReason, setVerificationReason] = useState<'sign-in' | 'session-expired'>('sign-in');
+  const [verificationReason, setVerificationReason] = useState<'sign-in' | 'session-expired' | 'initial-setup'>('sign-in');
   const hasDisconnectedRef = useRef(false);
   const lastActivityRef = useRef(Date.now());
   const checkIntervalRef = useRef<ReturnType<typeof setInterval>>();
@@ -70,8 +71,17 @@ export function InactivityVerification() {
 
   // On mount / user change: check if sign-in verification needed
   useEffect(() => {
-    if (!user || !linkedWalletAddress || isLoadingLinkedWallet) return;
+    if (!user || isLoadingLinkedWallet) return;
 
+    // Case 1: No wallet linked yet — force initial wallet setup
+    if (!linkedWalletAddress) {
+      setVerificationReason('initial-setup');
+      setNeedsVerification(true);
+      hasDisconnectedRef.current = true; // Don't disconnect — let them connect fresh
+      return;
+    }
+
+    // Case 2: Wallet linked — check if session needs re-verification
     if (!isSessionVerified()) {
       setVerificationReason('sign-in');
       setNeedsVerification(true);
@@ -108,12 +118,16 @@ export function InactivityVerification() {
 
   // When wallet is verified (walletSaved becomes true), mark session as verified
   useEffect(() => {
-    if (needsVerification && walletSaved && hasDisconnectedRef.current) {
+    if (!needsVerification || !walletSaved) return;
+
+    // For initial-setup, walletSaved means the wallet was just linked for the first time
+    // For sign-in/session-expired, walletSaved + disconnect means re-verified
+    if (verificationReason === 'initial-setup' || hasDisconnectedRef.current) {
       setNeedsVerification(false);
       markSessionVerified();
       updateActivity();
     }
-  }, [needsVerification, walletSaved, markSessionVerified, updateActivity]);
+  }, [needsVerification, walletSaved, verificationReason, markSessionVerified, updateActivity]);
 
   // Track user activity events
   useEffect(() => {
@@ -141,7 +155,7 @@ export function InactivityVerification() {
   }, [user, linkedWalletAddress, needsVerification, updateActivity, checkInactivity]);
 
   // Don't render if not needed
-  if (!user || !linkedWalletAddress || isLoadingLinkedWallet || !needsVerification) {
+  if (!user || isLoadingLinkedWallet || !needsVerification) {
     return null;
   }
 
