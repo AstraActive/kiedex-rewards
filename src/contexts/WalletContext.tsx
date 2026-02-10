@@ -239,7 +239,17 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
         if (updateError) {
           console.error('Error linking wallet:', updateError);
-          setWalletLinkError('Failed to link wallet. Please try again.');
+          // 23505 = unique constraint violation (wallet already linked to another account)
+          if (updateError.code === '23505') {
+            setWalletLinkError('This wallet is already linked to another account.');
+            toast({
+              title: 'Wallet Already Linked',
+              description: 'This wallet is already linked to another account. Please use a different wallet.',
+              variant: 'destructive',
+            });
+          } else {
+            setWalletLinkError('Failed to link wallet. Please try again.');
+          }
           setIsLinkingWallet(false);
           hasLinkedThisSessionRef.current = false;
           return;
