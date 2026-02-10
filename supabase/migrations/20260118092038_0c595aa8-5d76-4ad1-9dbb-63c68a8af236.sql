@@ -19,16 +19,21 @@ BEGIN
         RAISE EXCEPTION 'Only Gmail accounts (@gmail.com, @googlemail.com) are allowed';
     END IF;
     
-    -- Get welcome bonus amounts from config
-    welcome_bonus_oil := COALESCE(
-        (SELECT value::NUMERIC FROM public.system_config WHERE key = 'welcome_bonus_oil'),
-        50
-    );
-    
-    welcome_bonus_usdt := COALESCE(
-        (SELECT value::NUMERIC FROM public.system_config WHERE key = 'welcome_bonus_usdt'),
-        10000
-    );
+    -- Get welcome bonus amounts from config (with fallback if system_config doesn't exist yet)
+    BEGIN
+      welcome_bonus_oil := COALESCE(
+          (SELECT value::NUMERIC FROM public.system_config WHERE key = 'welcome_bonus_oil'),
+          50
+      );
+      
+      welcome_bonus_usdt := COALESCE(
+          (SELECT value::NUMERIC FROM public.system_config WHERE key = 'welcome_bonus_usdt'),
+          10000
+      );
+    EXCEPTION WHEN undefined_table THEN
+      welcome_bonus_oil := 50;
+      welcome_bonus_usdt := 10000;
+    END;
     
     -- Generate unique referral code
     LOOP

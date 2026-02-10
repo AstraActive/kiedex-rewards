@@ -14,12 +14,14 @@ CREATE TABLE IF NOT EXISTS public.system_config (
 ALTER TABLE public.system_config ENABLE ROW LEVEL SECURITY;
 
 -- Allow anyone to read config (needed for frontend)
+DROP POLICY IF EXISTS "Anyone can read system config" ON public.system_config;
 CREATE POLICY "Anyone can read system config"
 ON public.system_config
 FOR SELECT
 USING (true);
 
 -- Only service role can update config (admin only)
+DROP POLICY IF EXISTS "Only service role can update config" ON public.system_config;
 CREATE POLICY "Only service role can update config"
 ON public.system_config
 FOR ALL
@@ -88,8 +90,8 @@ COMMENT ON FUNCTION get_config IS
 COMMENT ON FUNCTION update_config IS 
 'Update configuration value (admin/service_role only)';
 
--- Create index for faster lookups
-CREATE INDEX IF NOT EXISTS idx_system_config_key ON public.system_config(key);
+-- Key column is already the PRIMARY KEY, no separate index needed
+-- (Removed redundant CREATE INDEX on PK column)
 
 -- Success message will be in migration logs
 -- Use get_config('daily_pool_kdx') to fetch pool size

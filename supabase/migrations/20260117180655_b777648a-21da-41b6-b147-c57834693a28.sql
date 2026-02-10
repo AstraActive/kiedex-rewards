@@ -1,7 +1,16 @@
 -- Add unique constraint on (user_id, date) for upsert to work
-ALTER TABLE leaderboard_daily 
-ADD CONSTRAINT leaderboard_daily_user_date_unique 
-UNIQUE (user_id, date);
+-- (Already defined in migration #1, but kept idempotent for safety)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint 
+    WHERE conname IN ('leaderboard_daily_user_date_unique', 'leaderboard_daily_user_id_date_key')
+  ) THEN
+    ALTER TABLE leaderboard_daily 
+    ADD CONSTRAINT leaderboard_daily_user_date_unique 
+    UNIQUE (user_id, date);
+  END IF;
+END $$;
 
 -- Create function to update leaderboard when a trade is closed
 CREATE OR REPLACE FUNCTION public.update_leaderboard_on_trade()
@@ -51,7 +60,8 @@ BEGIN
 END;
 $$;
 
--- Create trigger on trades_history
+-- Create trigger on trades_history (idempotent)
+DROP TRIGGER IF EXISTS trigger_update_leaderboard ON trades_history;
 CREATE TRIGGER trigger_update_leaderboard
 AFTER INSERT ON trades_history
 FOR EACH ROW

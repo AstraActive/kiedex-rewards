@@ -1,11 +1,15 @@
--- Add oil_balance column to balances table
-ALTER TABLE public.balances 
-ADD COLUMN oil_balance integer NOT NULL DEFAULT 0;
+-- Add oil_balance column to balances table (idempotent)
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'balances' AND column_name = 'oil_balance') THEN
+    ALTER TABLE public.balances ADD COLUMN oil_balance integer NOT NULL DEFAULT 0;
+  END IF;
+END $$;
 
 -- Give existing users some starting Oil (1000 Oil)
 UPDATE public.balances SET oil_balance = 1000;
 
--- Add RLS policy for updating oil_balance
+-- Add RLS policy for updating oil_balance (idempotent)
+DROP POLICY IF EXISTS "Users can update their own balances" ON public.balances;
 CREATE POLICY "Users can update their own balances" 
 ON public.balances 
 FOR UPDATE 

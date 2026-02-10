@@ -3,12 +3,12 @@ CREATE OR REPLACE FUNCTION increment_task_progress(
   p_user_id UUID,
   p_task_id TEXT,
   p_date DATE,
-  p_increment DECIMAL,
-  p_target DECIMAL
+  p_increment INTEGER,
+  p_target INTEGER
 ) RETURNS VOID AS $$
 DECLARE
-  v_current_progress DECIMAL;
-  v_new_progress DECIMAL;
+  v_current_progress INTEGER;
+  v_new_progress INTEGER;
   v_completed BOOLEAN;
 BEGIN
   -- Insert or get current progress

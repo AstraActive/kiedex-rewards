@@ -1,7 +1,7 @@
 -- Create social_tasks_progress table for one-time social tasks
-CREATE TABLE public.social_tasks_progress (
+CREATE TABLE IF NOT EXISTS public.social_tasks_progress (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   task_id TEXT NOT NULL,
   completed BOOLEAN NOT NULL DEFAULT false,
   claimed BOOLEAN NOT NULL DEFAULT false,
@@ -12,9 +12,9 @@ CREATE TABLE public.social_tasks_progress (
 );
 
 -- Create volume_milestone_claims table for daily volume milestones
-CREATE TABLE public.volume_milestone_claims (
+CREATE TABLE IF NOT EXISTS public.volume_milestone_claims (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID NOT NULL,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   milestone_id TEXT NOT NULL,
   date DATE NOT NULL DEFAULT CURRENT_DATE,
   volume_reached NUMERIC NOT NULL,
@@ -26,16 +26,19 @@ CREATE TABLE public.volume_milestone_claims (
 -- Enable RLS on social_tasks_progress
 ALTER TABLE public.social_tasks_progress ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own social tasks progress" ON public.social_tasks_progress;
 CREATE POLICY "Users can view their own social tasks progress"
 ON public.social_tasks_progress
 FOR SELECT
 USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own social tasks progress" ON public.social_tasks_progress;
 CREATE POLICY "Users can insert their own social tasks progress"
 ON public.social_tasks_progress
 FOR INSERT
 WITH CHECK (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can update their own social tasks progress" ON public.social_tasks_progress;
 CREATE POLICY "Users can update their own social tasks progress"
 ON public.social_tasks_progress
 FOR UPDATE
@@ -44,11 +47,13 @@ USING (auth.uid() = user_id);
 -- Enable RLS on volume_milestone_claims
 ALTER TABLE public.volume_milestone_claims ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Users can view their own volume milestone claims" ON public.volume_milestone_claims;
 CREATE POLICY "Users can view their own volume milestone claims"
 ON public.volume_milestone_claims
 FOR SELECT
 USING (auth.uid() = user_id);
 
+DROP POLICY IF EXISTS "Users can insert their own volume milestone claims" ON public.volume_milestone_claims;
 CREATE POLICY "Users can insert their own volume milestone claims"
 ON public.volume_milestone_claims
 FOR INSERT
