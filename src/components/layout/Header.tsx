@@ -5,7 +5,7 @@ import { useWallet } from '@/hooks/useWallet';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import { ChevronDown, Wallet, Users, CheckSquare, Settings, Copy, LogOut } from 'lucide-react';
 import logo from '@/assets/logo.svg';
-import { useDisconnect } from 'wagmi';
+
 import { toast } from 'sonner';
 import {
   DropdownMenu,
@@ -19,7 +19,6 @@ export function Header() {
   const { user, signOut } = useAuth();
   const { isConnected, isWrongNetwork, address, linkedWalletAddress, isReconnecting } = useWallet();
   const effectivelyConnected = isConnected || isReconnecting;
-  const { disconnect } = useDisconnect();
 
   const desktopNavLinks = user ? [
     { href: '/dashboard', label: 'Dashboard' },
@@ -118,8 +117,12 @@ export function Header() {
                     </DropdownMenuItem>
                     {effectivelyConnected && (
                       <DropdownMenuItem 
-                        onClick={() => disconnect()} 
-                        className="gap-2 cursor-pointer text-destructive focus:text-destructive"
+                        onClick={() => {
+                          toast.info('Your wallet is permanently linked to this account and cannot be disconnected.', {
+                            duration: 4000,
+                          });
+                        }} 
+                        className="gap-2 cursor-pointer text-muted-foreground"
                       >
                         <LogOut className="h-4 w-4" />
                         Disconnect
