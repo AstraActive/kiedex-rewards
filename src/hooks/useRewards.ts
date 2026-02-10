@@ -295,7 +295,10 @@ export function useRewards() {
       queryClient.invalidateQueries({ queryKey: ['rewards_history'] });
       queryClient.invalidateQueries({ queryKey: ['balances'] });
       queryClient.invalidateQueries({ queryKey: ['referral_bonus_history'] });
+      queryClient.invalidateQueries({ queryKey: ['referral_bonus_history_detailed'] });
       queryClient.invalidateQueries({ queryKey: ['referral_bonus_total'] });
+      queryClient.invalidateQueries({ queryKey: ['referral_summary'] });
+      queryClient.invalidateQueries({ queryKey: ['referral_users_detailed'] });
     },
   });
 

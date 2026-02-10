@@ -4,6 +4,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from './useProfile';
 import { PRODUCTION_URL } from '@/config/urls';
 
+export const REFERRAL_BONUS_PERCENTAGE = 8; // percent
+
 export interface ReferralUser {
   id: string;
   referrer_id: string;
@@ -82,17 +84,18 @@ export function useReferralDetails({
         .select('user_id, linked_wallet_address')
         .in('user_id', referredIds);
 
-      // Get total volume per referral from leaderboard
-      const { data: leaderboardData } = await supabase
-        .from('leaderboard_daily')
-        .select('user_id, total_volume')
-        .in('user_id', referredIds);
-
-      // Calculate total volume per user
+      // Get total volume per referral from leaderboard (aggregate per user)
       const volumeByUser: Record<string, number> = {};
-      (leaderboardData || []).forEach((entry) => {
-        volumeByUser[entry.user_id] = (volumeByUser[entry.user_id] || 0) + entry.total_volume;
-      });
+      for (const referredId of referredIds) {
+        const { data: volumeData } = await supabase
+          .from('leaderboard_daily')
+          .select('total_volume')
+          .eq('user_id', referredId);
+        
+        volumeByUser[referredId] = (volumeData || []).reduce(
+          (sum, entry) => sum + (entry.total_volume || 0), 0
+        );
+      }
 
       // Get total bonus earned from each referral
       const { data: bonusData } = await supabase
@@ -178,21 +181,31 @@ export function useReferralDetails({
     staleTime: 30000,
   });
 
-  // Get summary stats
+  // Get summary stats (use efficient count queries)
   const { data: summaryStats } = useQuery({
     queryKey: ['referral_summary', user?.id],
     queryFn: async () => {
       if (!user?.id) return { totalInvited: 0, activeCount: 0, pendingCount: 0, totalBonusEarned: 0 };
 
-      // Get referrals count by status
-      const { data: referrals } = await supabase
+      // Get total count
+      const { count: totalInvited } = await supabase
         .from('referrals')
-        .select('status')
+        .select('*', { count: 'exact', head: true })
         .eq('referrer_id', user.id);
 
-      const totalInvited = referrals?.length || 0;
-      const activeCount = referrals?.filter(r => r.status === 'active').length || 0;
-      const pendingCount = referrals?.filter(r => r.status === 'pending').length || 0;
+      // Get active count
+      const { count: activeCount } = await supabase
+        .from('referrals')
+        .select('*', { count: 'exact', head: true })
+        .eq('referrer_id', user.id)
+        .eq('status', 'active');
+
+      // Get pending count
+      const { count: pendingCount } = await supabase
+        .from('referrals')
+        .select('*', { count: 'exact', head: true })
+        .eq('referrer_id', user.id)
+        .eq('status', 'pending');
 
       // Get total bonus earned
       const { data: bonusData } = await supabase
@@ -205,7 +218,12 @@ export function useReferralDetails({
         0
       );
 
-      return { totalInvited, activeCount, pendingCount, totalBonusEarned };
+      return { 
+        totalInvited: totalInvited || 0, 
+        activeCount: activeCount || 0, 
+        pendingCount: pendingCount || 0, 
+        totalBonusEarned 
+      };
     },
     enabled: !!user?.id,
     staleTime: 30000,

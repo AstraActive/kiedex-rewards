@@ -5,7 +5,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { BASE_CHAIN_ID } from '@/config/wagmi';
 import { useToast } from '@/hooks/use-toast';
 import { clearWalletStorage, clearKiedexWalletSession } from '@/lib/walletStorage';
-import { clearWalletSession } from '@/lib/walletSession';
 import { WalletContext } from './WalletContextDefinition';
 
 // Re-export the type for consumers
@@ -63,9 +62,6 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     
     // Clear all wallet storage including persistent state (full reset)
     clearWalletStorage(true);
-    
-    // Clear wallet verification session
-    clearWalletSession();
     
     // Clear KieDex session
     if (user?.id) {
@@ -341,7 +337,6 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
   const disconnectWallet = useCallback(() => {
     disconnect();
-    clearWalletSession();
     setWalletSaved(false);
     setWalletMismatch(false);
     setWalletLinkError(null);

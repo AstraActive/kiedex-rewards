@@ -1,4 +1,5 @@
 import { ReferralBonusHistoryItem } from '@/hooks/useReferralDetails';
+import { REFERRAL_BONUS_PERCENTAGE } from '@/hooks/useReferralDetails';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatDistanceToNow, format } from 'date-fns';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -34,7 +35,7 @@ export function ReferralBonusHistory({ history, isLoading }: ReferralBonusHistor
       <div className="text-center py-8 text-muted-foreground">
         <Coins className="h-8 w-8 mx-auto mb-2 opacity-50" />
         <p>No bonus earnings yet</p>
-        <p className="text-sm mt-1">You'll earn 8% when your referrals claim KDX rewards</p>
+        <p className="text-sm mt-1">You'll earn {REFERRAL_BONUS_PERCENTAGE}% when your referrals claim KDX rewards</p>
       </div>
     );
   }
@@ -53,7 +54,7 @@ export function ReferralBonusHistory({ history, isLoading }: ReferralBonusHistor
             </div>
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>From: {formatWallet(item.referred_wallet)}</span>
-              <span>8% of {formatKDX(item.claimed_amount)} KDX</span>
+              <span>{REFERRAL_BONUS_PERCENTAGE}% of {formatKDX(item.claimed_amount)} KDX</span>
             </div>
           </div>
         ))}
@@ -90,7 +91,7 @@ export function ReferralBonusHistory({ history, isLoading }: ReferralBonusHistor
                 </span>
               </td>
               <td className="py-2.5 px-2 text-right text-xs text-muted-foreground">
-                8% of {formatKDX(item.claimed_amount)} KDX claim
+                {REFERRAL_BONUS_PERCENTAGE}% of {formatKDX(item.claimed_amount)} KDX claim
               </td>
             </tr>
           ))}

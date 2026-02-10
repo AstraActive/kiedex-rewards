@@ -176,10 +176,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
 
         // Process referral code for new users (on SIGNED_IN event)
+        // Only process if user created within last 5 minutes (likely a new signup)
         if (event === 'SIGNED_IN' && session?.user?.id) {
           const userId = session.user.id;
-          // Only process once per user per session
-          if (!processedUsersRef.current.has(userId)) {
+          const createdAt = session.user.created_at ? new Date(session.user.created_at).getTime() : 0;
+          const isNewUser = Date.now() - createdAt < 5 * 60 * 1000; // Within 5 minutes
+          
+          if (isNewUser && !processedUsersRef.current.has(userId)) {
             processedUsersRef.current.add(userId);
             // Use setTimeout to avoid blocking auth flow
             setTimeout(() => {

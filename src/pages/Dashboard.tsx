@@ -52,10 +52,17 @@ function DashboardContent() {
     });
   };
 
-  const copyReferralLink = () => {
-    // Always use production URL for referral links
-    navigator.clipboard.writeText(`${PRODUCTION_URL}?ref=${profile?.referral_code}`);
-    toast.success('Referral link copied!');
+  const copyReferralLink = async () => {
+    if (!profile?.referral_code) {
+      toast.error('Referral code not loaded yet');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(`${PRODUCTION_URL}?ref=${profile.referral_code}`);
+      toast.success('Referral link copied!');
+    } catch {
+      toast.error('Failed to copy to clipboard');
+    }
   };
 
   return (

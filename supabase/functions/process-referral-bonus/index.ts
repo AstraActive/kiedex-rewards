@@ -90,97 +90,43 @@ Deno.serve(async (req) => {
 
     console.log(`[Referral Bonus] Found active referral, referrer: ${referral.referrer_id}`);
 
-    // Check if bonus already paid for this claim
-    const { data: existingBonus } = await supabaseAdmin
-      .from('referral_bonus_history')
-      .select('id')
-      .eq('claim_id', claimId)
-      .maybeSingle();
-
-    if (existingBonus) {
-      console.log('[Referral Bonus] Bonus already paid for claim', claimId);
-      return new Response(JSON.stringify({ message: 'Bonus already paid', processed: false }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
-
     // Calculate 8% bonus
     const bonusAmount = Number(claim.amount) * 0.08;
     console.log(`[Referral Bonus] Calculated bonus: ${bonusAmount} KDX (8% of ${claim.amount})`);
 
-    // Get referrer's current balance
-    const { data: referrerBalance, error: balanceError } = await supabaseAdmin
-      .from('balances')
-      .select('kdx_balance')
-      .eq('user_id', referral.referrer_id)
+    // Use atomic database function to process bonus in a single transaction
+    // This prevents race conditions and ensures balance + history are consistent
+    const { data: result, error: rpcError } = await supabaseAdmin
+      .rpc('process_referral_bonus', {
+        p_referrer_id: referral.referrer_id,
+        p_referred_id: user.id,
+        p_claim_id: claimId,
+        p_claimed_amount: Number(claim.amount),
+        p_bonus_percentage: 0.08,
+      })
       .single();
 
-    if (balanceError) {
-      console.error('[Referral Bonus] Error fetching referrer balance:', balanceError);
-      
-      // If balance row doesn't exist, create one
-      if (balanceError.code === 'PGRST116') {
-        console.log('[Referral Bonus] Creating balance row for referrer');
-        const { error: insertError } = await supabaseAdmin
-          .from('balances')
-          .insert({ user_id: referral.referrer_id, kdx_balance: bonusAmount });
-        
-        if (insertError) {
-          console.error('[Referral Bonus] Failed to create balance row:', insertError);
-          return new Response(JSON.stringify({ error: 'Failed to create balance' }), {
-            status: 500,
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          });
-        }
-      } else {
-        return new Response(JSON.stringify({ error: 'Failed to fetch balance' }), {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-    } else {
-      const newBalance = (referrerBalance?.kdx_balance || 0) + bonusAmount;
-      console.log(`[Referral Bonus] Updating referrer balance: ${referrerBalance?.kdx_balance || 0} -> ${newBalance}`);
-
-      // Update referrer's KDX balance (using service role - bypasses RLS)
-      const { error: updateError } = await supabaseAdmin
-        .from('balances')
-        .update({ kdx_balance: newBalance })
-        .eq('user_id', referral.referrer_id);
-
-      if (updateError) {
-        console.error('[Referral Bonus] Failed to update balance:', updateError);
-        return new Response(JSON.stringify({ error: 'Failed to update balance' }), {
-          status: 500,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        });
-      }
-    }
-
-    // Record bonus history
-    const { error: historyError } = await supabaseAdmin
-      .from('referral_bonus_history')
-      .insert({
-        referrer_user_id: referral.referrer_id,
-        referred_user_id: user.id,
-        claim_id: claimId,
-        claimed_amount: claim.amount,
-        referral_bonus_amount: bonusAmount,
+    if (rpcError) {
+      console.error('[Referral Bonus] RPC error:', rpcError);
+      return new Response(JSON.stringify({ error: 'Failed to process bonus', details: rpcError.message }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
-
-    if (historyError) {
-      console.error('[Referral Bonus] Failed to record bonus history:', historyError);
-      // Don't fail the whole operation if history insert fails
-    } else {
-      console.log('[Referral Bonus] Bonus history recorded successfully');
     }
 
-    console.log(`[Referral Bonus] ✅ Successfully paid ${bonusAmount} KDX to referrer ${referral.referrer_id}`);
+    if (!result.success) {
+      console.log(`[Referral Bonus] Not processed: ${result.message}`);
+      return new Response(JSON.stringify({ message: result.message, processed: false }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log(`[Referral Bonus] ✅ Successfully paid ${result.bonus_amount} KDX to referrer ${referral.referrer_id} (new balance: ${result.new_balance})`);
 
     return new Response(JSON.stringify({ 
       success: true, 
       processed: true,
-      bonusAmount,
+      bonusAmount: result.bonus_amount,
       referrerId: referral.referrer_id 
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { RequireAuth } from '@/components/auth/RequireAuth';
 import { RequireMFA } from '@/components/auth/RequireMFA';
@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useReferralDetails } from '@/hooks/useReferralDetails';
+import { REFERRAL_BONUS_PERCENTAGE } from '@/hooks/useReferralDetails';
 import { ReferralUsersTable } from '@/components/referral/ReferralUsersTable';
 import { ReferralBonusHistory } from '@/components/referral/ReferralBonusHistory';
 import { TradesPagination } from '@/components/trading/TradesPagination';
@@ -39,14 +40,43 @@ function ReferralContent() {
     historyPageSize,
   });
 
-  const copyCode = () => {
-    navigator.clipboard.writeText(referralCode);
-    toast.success('Referral code copied!');
+  // Clamp pagination to valid bounds when data changes
+  useEffect(() => {
+    if (usersTotalPages > 0 && usersPage >= usersTotalPages) {
+      setUsersPage(usersTotalPages - 1);
+    }
+  }, [usersPage, usersTotalPages]);
+
+  useEffect(() => {
+    if (historyTotalPages > 0 && historyPage >= historyTotalPages) {
+      setHistoryPage(historyTotalPages - 1);
+    }
+  }, [historyPage, historyTotalPages]);
+
+  const copyCode = async () => {
+    if (!referralCode) {
+      toast.error('Referral code not loaded yet');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(referralCode);
+      toast.success('Referral code copied!');
+    } catch {
+      toast.error('Failed to copy to clipboard');
+    }
   };
 
-  const copyLink = () => {
-    navigator.clipboard.writeText(referralLink);
-    toast.success('Referral link copied!');
+  const copyLink = async () => {
+    if (!referralLink) {
+      toast.error('Referral link not loaded yet');
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(referralLink);
+      toast.success('Referral link copied!');
+    } catch {
+      toast.error('Failed to copy to clipboard');
+    }
   };
 
   const formatKDX = (amount: number) => {
@@ -58,7 +88,7 @@ function ReferralContent() {
       <div className="container py-4 pb-20 md:pb-6 space-y-4">
         <div>
           <h1 className="text-xl font-bold text-foreground">Referral Program</h1>
-          <p className="text-sm text-muted-foreground">Invite friends and earn 8% of their claimed KDX rewards</p>
+          <p className="text-sm text-muted-foreground">Invite friends and earn {REFERRAL_BONUS_PERCENTAGE}% of their claimed KDX rewards</p>
         </div>
 
         {/* Referral Code - Compact */}
@@ -209,8 +239,8 @@ function ReferralContent() {
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold shrink-0">3</div>
                   <div>
-                    <p className="text-sm text-foreground font-medium">Earn 8% bonus</p>
-                    <p className="text-xs text-muted-foreground">Every time your referral claims KDX rewards, you automatically receive 8% of their claimed amount as a bonus.</p>
+                    <p className="text-sm text-foreground font-medium">Earn {REFERRAL_BONUS_PERCENTAGE}% bonus</p>
+                    <p className="text-xs text-muted-foreground">Every time your referral claims KDX rewards, you automatically receive {REFERRAL_BONUS_PERCENTAGE}% of their claimed amount as a bonus.</p>
                   </div>
                 </div>
                 
