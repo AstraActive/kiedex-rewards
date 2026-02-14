@@ -1,8 +1,8 @@
 // Quick script to check leaderboard data
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = 'https://oxjkyerdjhvxcqkbrlak.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im94amt5ZXJkamh2eGNxa2JybGFrIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MDIwOTI0NiwiZXhwIjoyMDg1Nzg1MjQ2fQ.fIbMkVtZYqJCjGt1f1M01X29ClbFN1lJHp3ufAcZ5kE';
+const supabaseUrl = 'https://ffcsrzbwbuzhboyyloam.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZmY3NyemJ3YnV6aGJveXlsb2FtIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2ODczNDc4OSwiZXhwIjoyMDg0MzEwNzg5fQ.THmTeRYQflsrn0mgCWjd48Wfg7gv_rtlQ9tiGjEnnbw';
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 

@@ -19,7 +19,7 @@ WHERE jobname IN ('generate-daily-rewards', 'cleanup-expired-rewards');
 SELECT * FROM app.settings;
 
 -- Expected: 2 rows
--- supabase_url: https://oxjkyerdjhvxcqkbrlak.supabase.co
+-- supabase_url: https://ffcsrzbwbuzhboyyloam.supabase.co
 -- service_role_key: eyJhbG...
 
 -- 3. Check system config table
