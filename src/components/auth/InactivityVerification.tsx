@@ -30,7 +30,7 @@ const getBrowserVerifiedKey = (userId: string) => `kiedex_browser_verified_${use
  */
 export function InactivityVerification() {
   const { user } = useAuth();
-  const { linkedWalletAddress, isLoadingLinkedWallet, walletSaved } = useWallet();
+  const { linkedWalletAddress, isLoadingLinkedWallet, walletSaved, walletMismatch } = useWallet();
   const { isConnected } = useAccount();
   const { disconnect } = useDisconnect();
 
@@ -155,16 +155,16 @@ export function InactivityVerification() {
     }
   }, [needsVerification, isConnected, disconnect]);
 
-  // ─── When wallet verified successfully (walletSaved flips true) ──────────
+  // ─── When wallet verified successfully (walletSaved flips true, NOT mismatch) ─
 
   useEffect(() => {
-    if (needsVerification && walletSaved && hasDisconnectedRef.current && user) {
-      // Mark this browser as verified and record last-active
+    // Only dismiss when the CORRECT wallet was connected (walletSaved=true, walletMismatch=false)
+    if (needsVerification && walletSaved && !walletMismatch && hasDisconnectedRef.current && user) {
       markBrowserVerified(user.id);
       updateLastActive(user.id);
       setNeedsVerification(false);
     }
-  }, [needsVerification, walletSaved, user, markBrowserVerified, updateLastActive]);
+  }, [needsVerification, walletSaved, walletMismatch, user, markBrowserVerified, updateLastActive]);
 
   // ─── Render ──────────────────────────────────────────────────────────────
 
@@ -174,7 +174,10 @@ export function InactivityVerification() {
 
   return (
     <div className="fixed inset-0 z-[60] bg-background overflow-y-auto flex items-center justify-center p-4">
-      <ConnectWalletScreen verificationReason={verificationReason} />
+      {/* Pass walletMismatch so wrong-wallet state shows correctly inside the verification overlay */}
+      <ConnectWalletScreen
+        verificationReason={walletMismatch ? undefined : verificationReason}
+      />
     </div>
   );
 }
