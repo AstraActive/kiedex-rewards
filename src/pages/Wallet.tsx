@@ -181,7 +181,6 @@ function WalletContent() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {/* Use linkedWalletAddress (from DB) as source of truth, not isConnected */}
             {!linkedWalletAddress ? (
               <Alert>
                 <AlertTriangle className="h-4 w-4" />
@@ -200,14 +199,14 @@ function WalletContent() {
             ) : (
               <div className="flex items-center justify-between p-3 bg-primary/10 rounded-lg">
                 <div className="flex items-center gap-2">
-                  {isReconnecting ? (
-                    <Loader2 className="h-4 w-4 text-primary animate-spin" />
-                  ) : (
-                    <CheckCircle className="h-4 w-4 text-primary" />
+                  <CheckCircle className="h-4 w-4 text-primary" />
+                  <span className="text-sm text-foreground">Linked Wallet</span>
+                  {isConnected && (
+                    <span className="flex items-center gap-1 text-[10px] font-semibold text-primary bg-primary/20 px-1.5 py-0.5 rounded-full">
+                      <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse inline-block" />
+                      Active
+                    </span>
                   )}
-                  <span className="text-sm text-foreground">
-                    {isConnected ? 'Connected to Base' : isReconnecting ? 'Connecting...' : 'Linked Wallet'}
-                  </span>
                 </div>
                 <span className="font-mono text-sm text-muted-foreground">
                   {(address || linkedWalletAddress)?.slice(0, 6)}...{(address || linkedWalletAddress)?.slice(-4)}
