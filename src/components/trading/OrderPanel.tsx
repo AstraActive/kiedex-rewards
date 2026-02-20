@@ -29,10 +29,11 @@ const RETRY_DELAY_MS = 1000;
 
 export function OrderPanel({ symbol }: OrderPanelProps) {
   const { user, session } = useAuth();
-  const { isConnected, linkedWalletAddress, walletMismatch, isReconnecting, walletSaved } = useWallet();
-  // Wallet is 'ready' when the address is linked — wagmi may still be reconnecting
-  // on page load (especially mobile), so we accept any of these states.
-  const isWalletReady = !!linkedWalletAddress && (isConnected || isReconnecting || walletSaved);
+  const { linkedWalletAddress, walletMismatch } = useWallet();
+  // Trading only requires a linked wallet address (stored in DB).
+  // The execute-trade edge function verifies the user's JWT server-side,
+  // so an active wagmi session is NOT required to place trades.
+  const isWalletReady = !!linkedWalletAddress;
   const { ticker } = useMarketPrice(symbol);
   const { data: balances, isLoading: balancesLoading } = useBalances();
   const queryClient = useQueryClient();
@@ -188,7 +189,7 @@ export function OrderPanel({ symbol }: OrderPanelProps) {
   const displayName = binanceService.SYMBOL_NAMES[symbol] || symbol;
 
   // Show wallet mismatch warning
-  const showWalletWarning = walletMismatch && isConnected;
+  const showWalletWarning = walletMismatch;
 
   return (
     <Card className="bg-card border-border">
@@ -213,16 +214,6 @@ export function OrderPanel({ symbol }: OrderPanelProps) {
         </div>
       </CardHeader>
       <CardContent className="space-y-3 md:space-y-4">
-        {/* Wallet not actively connected warning (mobile / reconnecting) */}
-        {linkedWalletAddress && !isConnected && !isReconnecting && (
-          <Alert className="border-amber-500/30 bg-amber-500/10">
-            <AlertTriangle className="h-4 w-4 text-amber-500" />
-            <AlertDescription className="text-amber-500 text-xs">
-              Wallet not actively connected. Trading may still work — your wallet is linked to this account.
-            </AlertDescription>
-          </Alert>
-        )}
-
         {/* Wallet Mismatch Warning */}
         {showWalletWarning && (
           <Alert variant="destructive" className="border-destructive/50">
