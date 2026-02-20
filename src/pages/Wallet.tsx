@@ -28,7 +28,7 @@ const MIN_ETH_DEPOSIT = 0.00000001;
 
 function WalletContent() {
   const { user } = useAuth();
-  const { address, isConnected, isWrongNetwork, switchToBase } = useWallet();
+  const { address, isConnected, isReconnecting, isWrongNetwork, switchToBase, linkedWalletAddress } = useWallet();
   const { data: balances, isLoading: balancesLoading } = useBalances();
   const { data: deposits, isLoading: depositsLoading, refetch: refetchDeposits } = useOilDeposits();
   const queryClient = useQueryClient();
@@ -181,12 +181,13 @@ function WalletContent() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {!isConnected ? (
+            {/* Use linkedWalletAddress (from DB) as source of truth, not isConnected */}
+            {!linkedWalletAddress ? (
               <Alert>
                 <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>Wallet not connected</AlertDescription>
+                <AlertDescription>No wallet linked to this account.</AlertDescription>
               </Alert>
-            ) : isWrongNetwork ? (
+            ) : isConnected && isWrongNetwork ? (
               <>
                 <Alert variant="destructive">
                   <AlertTriangle className="h-4 w-4" />
@@ -199,11 +200,17 @@ function WalletContent() {
             ) : (
               <div className="flex items-center justify-between p-3 bg-primary/10 rounded-lg">
                 <div className="flex items-center gap-2">
-                  <CheckCircle className="h-4 w-4 text-primary" />
-                  <span className="text-sm text-foreground">Connected to Base</span>
+                  {isReconnecting ? (
+                    <Loader2 className="h-4 w-4 text-primary animate-spin" />
+                  ) : (
+                    <CheckCircle className="h-4 w-4 text-primary" />
+                  )}
+                  <span className="text-sm text-foreground">
+                    {isConnected ? 'Connected to Base' : isReconnecting ? 'Connecting...' : 'Linked Wallet'}
+                  </span>
                 </div>
                 <span className="font-mono text-sm text-muted-foreground">
-                  {address?.slice(0, 6)}...{address?.slice(-4)}
+                  {(address || linkedWalletAddress)?.slice(0, 6)}...{(address || linkedWalletAddress)?.slice(-4)}
                 </span>
               </div>
             )}
