@@ -29,7 +29,10 @@ const RETRY_DELAY_MS = 1000;
 
 export function OrderPanel({ symbol }: OrderPanelProps) {
   const { user, session } = useAuth();
-  const { isConnected, linkedWalletAddress, walletMismatch } = useWallet();
+  const { isConnected, linkedWalletAddress, walletMismatch, isReconnecting, walletSaved } = useWallet();
+  // Wallet is 'ready' when the address is linked — wagmi may still be reconnecting
+  // on page load (especially mobile), so we accept any of these states.
+  const isWalletReady = !!linkedWalletAddress && (isConnected || isReconnecting || walletSaved);
   const { ticker } = useMarketPrice(symbol);
   const { data: balances, isLoading: balancesLoading } = useBalances();
   const queryClient = useQueryClient();
@@ -42,17 +45,17 @@ export function OrderPanel({ symbol }: OrderPanelProps) {
   const marginNum = parseFloat(margin) || 0;
   const availableBalance = balances?.demo_usdt_balance || 0;
   const oilBalance = balances?.oil_balance || 0;
-  
+
   // Dynamic fee: 1 USDT position size = 1 Oil fee
   const positionSizeUsdt = marginNum * leverage;
   const feeOil = Math.ceil(positionSizeUsdt);
-  
+
   const hasEnoughOil = feeOil > 0 ? oilBalance >= feeOil : true;
   const hasEnoughMargin = marginNum >= MIN_MARGIN && marginNum <= availableBalance;
 
   const calculations = useMemo(() => {
     const positionSize = (marginNum * leverage) / markPrice;
-    
+
     // Liquidation price calculation (simplified)
     const maintenanceMargin = marginNum * 0.5; // 50% maintenance margin
     const liquidationDistance = maintenanceMargin / positionSize;
@@ -80,8 +83,8 @@ export function OrderPanel({ symbol }: OrderPanelProps) {
     if (!linkedWalletAddress) {
       return 'No wallet linked. Please connect your wallet first.';
     }
-    if (!isConnected) {
-      return 'Wallet not connected. Please connect your wallet.';
+    if (!isWalletReady) {
+      return 'Wallet not ready. Please wait a moment and try again.';
     }
     if (walletMismatch) {
       return 'Connected wallet does not match linked wallet. Please switch wallets.';
@@ -108,7 +111,7 @@ export function OrderPanel({ symbol }: OrderPanelProps) {
     }
 
     return null; // No errors
-  }, [user, session, linkedWalletAddress, isConnected, walletMismatch, symbol, marginNum, availableBalance, leverage, hasEnoughOil, feeOil, markPrice]);
+  }, [user, session, linkedWalletAddress, isWalletReady, walletMismatch, symbol, marginNum, availableBalance, leverage, hasEnoughOil, feeOil, markPrice]);
 
   // Execute trade with retry logic for server errors
   const executeTradeWithRetry = useCallback(async (retryCount = 0): Promise<unknown> => {
@@ -124,22 +127,22 @@ export function OrderPanel({ symbol }: OrderPanelProps) {
     // Handle SDK-level errors (network issues, timeouts)
     if (error) {
       console.error('Trade execution SDK error:', error);
-      
+
       // Check if it's a retryable server error (5xx)
       const errorMessage = error.message || '';
-      const isServerError = 
-        errorMessage.includes('500') || 
+      const isServerError =
+        errorMessage.includes('500') ||
         errorMessage.includes('502') ||
         errorMessage.includes('503') ||
         errorMessage.includes('504') ||
         errorMessage.includes('FunctionsHttpError');
-      
+
       if (isServerError && retryCount < 1) {
         console.log('Retrying trade after server error...');
         await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
         return executeTradeWithRetry(retryCount + 1);
       }
-      
+
       throw new Error(error.message || 'Failed to connect to trading server');
     }
 
@@ -210,6 +213,16 @@ export function OrderPanel({ symbol }: OrderPanelProps) {
         </div>
       </CardHeader>
       <CardContent className="space-y-3 md:space-y-4">
+        {/* Wallet not actively connected warning (mobile / reconnecting) */}
+        {linkedWalletAddress && !isConnected && !isReconnecting && (
+          <Alert className="border-amber-500/30 bg-amber-500/10">
+            <AlertTriangle className="h-4 w-4 text-amber-500" />
+            <AlertDescription className="text-amber-500 text-xs">
+              Wallet not actively connected. Trading may still work — your wallet is linked to this account.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Wallet Mismatch Warning */}
         {showWalletWarning && (
           <Alert variant="destructive" className="border-destructive/50">
@@ -350,11 +363,11 @@ export function OrderPanel({ symbol }: OrderPanelProps) {
         <Button
           className={cn(
             "w-full text-base md:text-lg font-semibold h-10 md:h-11",
-            side === 'long' 
-              ? "bg-primary hover:bg-primary/90" 
+            side === 'long'
+              ? "bg-primary hover:bg-primary/90"
               : "bg-destructive hover:bg-destructive/90"
           )}
-          disabled={!hasEnoughMargin || !hasEnoughOil || openPositionMutation.isPending || showWalletWarning}
+          disabled={!hasEnoughMargin || !hasEnoughOil || openPositionMutation.isPending || showWalletWarning || !isWalletReady}
           onClick={() => openPositionMutation.mutate()}
         >
           {openPositionMutation.isPending ? (

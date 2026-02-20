@@ -53,7 +53,7 @@ export function Header() {
           <Link to={user ? '/dashboard' : '/'} className="flex items-center">
             <img src={logo} alt="KieDex" className="h-8" />
           </Link>
-          
+
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-4">
             {desktopNavLinks.map((link) => (
@@ -108,30 +108,29 @@ export function Header() {
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48 bg-popover border-border">
                     <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                      {effectivelyConnected ? 'Connected to Base' : 'Linked Wallet'}
+                      {isConnected ? 'Connected to Base' : isReconnecting ? 'Reconnecting...' : 'Linked Wallet'}
                     </div>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={copyAddress} className="gap-2 cursor-pointer">
                       <Copy className="h-4 w-4" />
                       Copy Address
                     </DropdownMenuItem>
-                    {effectivelyConnected && (
-                      <DropdownMenuItem 
-                        onClick={() => {
-                          toast.info('Your wallet is permanently linked to this account and cannot be disconnected.', {
-                            duration: 4000,
-                          });
-                        }} 
-                        className="gap-2 cursor-pointer text-muted-foreground"
-                      >
-                        <LogOut className="h-4 w-4" />
-                        Disconnect
-                      </DropdownMenuItem>
-                    )}
+                    {/* Always show Disconnect — wallet is permanently linked so this just shows an info toast */}
+                    <DropdownMenuItem
+                      onClick={() => {
+                        toast.info('Your wallet is permanently linked to this account and cannot be disconnected.', {
+                          duration: 4000,
+                        });
+                      }}
+                      className="gap-2 cursor-pointer text-muted-foreground"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Disconnect
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
-                <ConnectButton 
+                <ConnectButton
                   showBalance={false}
                   chainStatus="icon"
                   accountStatus={{
