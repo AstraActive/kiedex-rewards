@@ -17,7 +17,7 @@ import {
 
 export function Header() {
   const { user, signOut } = useAuth();
-  const { isConnected, isWrongNetwork, address, linkedWalletAddress } = useWallet();
+  const { isConnected, isWrongNetwork, address, linkedWalletAddress, isReconnecting } = useWallet();
   const effectivelyConnected = isConnected;
 
   const desktopNavLinks = user ? [
@@ -107,8 +107,13 @@ export function Header() {
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48 bg-popover border-border">
-                    <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                      {isConnected ? 'Connected to Base' : 'Linked Wallet'}
+                    <div className="px-2 py-1.5 text-xs text-muted-foreground flex items-center gap-1.5">
+                      {isConnected
+                        ? 'Connected to Base'
+                        : isReconnecting
+                          ? <><span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse inline-block" />Connecting...</>
+                          : 'Linked Wallet'
+                      }
                     </div>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={copyAddress} className="gap-2 cursor-pointer">
