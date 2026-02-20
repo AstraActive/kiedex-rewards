@@ -14,14 +14,14 @@ function formatAddress(address: string): string {
 
 interface ConnectWalletScreenProps {
   pageName?: string; // e.g., "Rewards", "Trading", etc.
-  verificationReason?: 'sign-in' | 'session-expired' | 'initial-setup'; // Context for verification overlay
+  verificationReason?: 'sign-in' | 'session-expired' | 'initial-setup' | 'new-browser' | 'inactive';
 }
 
 export function ConnectWalletScreen({ pageName, verificationReason }: ConnectWalletScreenProps = {}) {
-  const { 
-    isConnected, 
-    isWrongNetwork, 
-    switchToBase, 
+  const {
+    isConnected,
+    isWrongNetwork,
+    switchToBase,
     walletSaved,
     linkedWalletAddress,
     walletMismatch,
@@ -35,7 +35,7 @@ export function ConnectWalletScreen({ pageName, verificationReason }: ConnectWal
   } = useWallet();
   const { signOut } = useAuth();
   const isMobile = useIsMobile();
-  const { 
+  const {
     isConnecting,
     hasTimedOut,
     failureCount,
@@ -66,13 +66,23 @@ export function ConnectWalletScreen({ pageName, verificationReason }: ConnectWal
         loadingDescription: 'Connecting to your linked wallet...',
       };
     }
-    if (verificationReason === 'session-expired') {
+    if (verificationReason === 'new-browser') {
       return {
-        cardTitle: 'Session Expired',
-        cardDescription: 'Your session has expired due to inactivity',
-        warningTitle: 'Inactivity Timeout',
-        warningMessage: 'You\'ve been inactive for a while. Please reconnect your wallet to resume your session.',
-        loadingTitle: 'Reconnecting Session',
+        cardTitle: 'New Browser Detected',
+        cardDescription: 'Connect your linked wallet to verify it\'s you',
+        warningTitle: 'Browser Verification Required',
+        warningMessage: 'This is the first time you\'re accessing KieDex from this browser. Please connect your linked wallet to confirm your identity.',
+        loadingTitle: 'Verifying Browser',
+        loadingDescription: 'Connecting to your linked wallet...',
+      };
+    }
+    if (verificationReason === 'inactive' || verificationReason === 'session-expired') {
+      return {
+        cardTitle: 'Verification Required',
+        cardDescription: 'You\'ve been away for more than 5 days',
+        warningTitle: '5-Day Inactivity Check',
+        warningMessage: 'You haven\'t been active for 5 or more days. Please reconnect your linked wallet to resume your session securely.',
+        loadingTitle: 'Resuming Session',
         loadingDescription: 'Reconnecting to your wallet...',
       };
     }
@@ -213,7 +223,7 @@ export function ConnectWalletScreen({ pageName, verificationReason }: ConnectWal
                 </p>
               </div>
             </div>
-            
+
             <p className="text-sm text-muted-foreground text-center">
               Please disconnect and connect the correct wallet to continue.
             </p>
@@ -343,7 +353,7 @@ export function ConnectWalletScreen({ pageName, verificationReason }: ConnectWal
                 {formatAddress(linkedWalletAddress)}
               </p>
             </div>
-            
+
             <p className="text-sm font-medium text-center">
               Please connect this wallet to continue
             </p>
@@ -351,12 +361,12 @@ export function ConnectWalletScreen({ pageName, verificationReason }: ConnectWal
             <div className="flex justify-center">
               <ConnectButton />
             </div>
-            
+
             <Button variant="outline" onClick={resetWalletConnection} className="w-full">
               <RefreshCw className="h-4 w-4 mr-2" />
               Reset Connection
             </Button>
-            
+
             <Button variant="ghost" onClick={signOut} className="w-full">
               <LogOut className="h-4 w-4 mr-2" />
               Sign Out
@@ -388,7 +398,7 @@ export function ConnectWalletScreen({ pageName, verificationReason }: ConnectWal
                 <div className="text-sm">
                   <p className="font-medium text-amber-500 mb-1">One-Time Action</p>
                   <p className="text-muted-foreground">
-                    Your wallet will be permanently bound to this account. 
+                    Your wallet will be permanently bound to this account.
                     You won't be able to change it later or use this wallet with another account.
                   </p>
                 </div>
@@ -398,12 +408,12 @@ export function ConnectWalletScreen({ pageName, verificationReason }: ConnectWal
             <div className="flex justify-center">
               <ConnectButton />
             </div>
-            
+
             <Button variant="ghost" onClick={signOut} className="w-full">
               <LogOut className="h-4 w-4 mr-2" />
               Sign Out
             </Button>
-            
+
             <div className="pt-4 border-t border-border">
               <h4 className="text-sm font-medium mb-2">Why link a wallet?</h4>
               <ul className="text-sm text-muted-foreground space-y-1">
@@ -436,17 +446,17 @@ export function ConnectWalletScreen({ pageName, verificationReason }: ConnectWal
           <div className="flex justify-center">
             <ConnectButton />
           </div>
-          
+
           <Button variant="outline" onClick={resetWalletConnection} className="w-full">
             <RefreshCw className="h-4 w-4 mr-2" />
             Reset Connection
           </Button>
-          
+
           <Button variant="ghost" onClick={signOut} className="w-full">
             <LogOut className="h-4 w-4 mr-2" />
             Sign Out
           </Button>
-          
+
           <div className="pt-4 border-t border-border">
             <h4 className="text-sm font-medium mb-2">Why connect a wallet?</h4>
             <ul className="text-sm text-muted-foreground space-y-1">

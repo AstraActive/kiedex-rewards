@@ -4,103 +4,150 @@ import { useWallet } from '@/hooks/useWallet';
 import { useAccount, useDisconnect } from 'wagmi';
 import { ConnectWalletScreen } from '@/components/wallet/ConnectWalletScreen';
 
-const INACTIVITY_TIMEOUT = 30 * 60 * 1000; // 30 minutes
-const ACTIVITY_CHECK_INTERVAL = 60 * 1000; // Check every minute
-const SESSION_KEY = 'kiedex_last_activity';
-const VERIFIED_SESSION_KEY = 'kiedex_wallet_verified';
+// 5 days in milliseconds
+const INACTIVITY_TIMEOUT = 5 * 24 * 60 * 60 * 1000;
+// Check every 5 minutes (no need to check every minute for a 5-day window)
+const ACTIVITY_CHECK_INTERVAL = 5 * 60 * 1000;
+
+// localStorage key helpers — these are per-user and per-browser
+const getLastActiveKey = (userId: string) => `kiedex_last_active_${userId}`;
+const getBrowserVerifiedKey = (userId: string) => `kiedex_browser_verified_${userId}`;
 
 /**
- * InactivityVerification - Handles session security:
- * 1. Requires wallet re-verification on every sign-in (once per session)
- * 2. Re-prompts after 30 minutes of inactivity
- * 
- * NOTE: Mandatory wallet connection for new users is handled by WalletGuard.
- * This component only activates when a wallet is already linked.
+ * InactivityVerification — Handles session security:
+ *
+ * 1. NEW BROWSER: If `kiedex_browser_verified_{userId}` is absent from localStorage
+ *    (i.e. this browser has never been verified for this user), require wallet verification.
+ *
+ * 2. INACTIVITY: If the user's last recorded activity (`kiedex_last_active_{userId}`)
+ *    is more than 5 days ago, require wallet re-verification.
+ *
+ * Both keys live in localStorage, so they are browser-specific and survive
+ * page refreshes/tab closes, but are cleared when the user clears browser data.
+ *
+ * NOTE: First-time wallet linking (no linked wallet at all) is handled by WalletGuard.
+ * This component only activates when a wallet is ALREADY linked.
  */
 export function InactivityVerification() {
   const { user } = useAuth();
   const { linkedWalletAddress, isLoadingLinkedWallet, walletSaved } = useWallet();
   const { isConnected } = useAccount();
   const { disconnect } = useDisconnect();
-  const [needsVerification, setNeedsVerification] = useState(false);
-  const [verificationReason, setVerificationReason] = useState<'sign-in' | 'session-expired'>('sign-in');
-  const hasDisconnectedRef = useRef(false);
-  const lastActivityRef = useRef(Date.now());
-  const checkIntervalRef = useRef<ReturnType<typeof setInterval>>();
 
-  // Check if user has verified wallet this session
-  const isSessionVerified = useCallback(() => {
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [verificationReason, setVerificationReason] = useState<'new-browser' | 'inactive'>('new-browser');
+  const hasDisconnectedRef = useRef(false);
+
+  // ─── localStorage helpers ────────────────────────────────────────────────
+
+  const isBrowserVerified = useCallback((userId: string): boolean => {
     try {
-      return sessionStorage.getItem(VERIFIED_SESSION_KEY) === user?.id;
+      return localStorage.getItem(getBrowserVerifiedKey(userId)) === '1';
     } catch {
       return false;
     }
-  }, [user?.id]);
+  }, []);
 
-  // Mark session as verified
-  const markSessionVerified = useCallback(() => {
+  const markBrowserVerified = useCallback((userId: string) => {
     try {
-      if (user?.id) {
-        sessionStorage.setItem(VERIFIED_SESSION_KEY, user.id);
-      }
-    } catch {
-      // Ignore
-    }
-  }, [user?.id]);
-
-  // Update last activity timestamp
-  const updateActivity = useCallback(() => {
-    const now = Date.now();
-    lastActivityRef.current = now;
-    try {
-      localStorage.setItem(SESSION_KEY, String(now));
+      localStorage.setItem(getBrowserVerifiedKey(userId), '1');
     } catch {
       // Ignore storage errors
     }
   }, []);
 
-  // Check if session has expired due to inactivity
-  const checkInactivity = useCallback(() => {
-    if (!user || !linkedWalletAddress) return;
-    const elapsed = Date.now() - lastActivityRef.current;
-    if (elapsed >= INACTIVITY_TIMEOUT) {
-      setVerificationReason('session-expired');
-      setNeedsVerification(true);
-      hasDisconnectedRef.current = false;
+  const getLastActive = useCallback((userId: string): number | null => {
+    try {
+      const v = localStorage.getItem(getLastActiveKey(userId));
+      if (!v) return null;
+      const n = parseInt(v, 10);
+      return isNaN(n) ? null : n;
+    } catch {
+      return null;
     }
-  }, [user, linkedWalletAddress]);
+  }, []);
 
-  // On mount / user change: check if sign-in verification needed
+  const updateLastActive = useCallback((userId: string) => {
+    try {
+      localStorage.setItem(getLastActiveKey(userId), String(Date.now()));
+    } catch {
+      // Ignore storage errors
+    }
+  }, []);
+
+  // ─── Initial check (on mount / user or wallet change) ───────────────────
+
   useEffect(() => {
     if (!user || !linkedWalletAddress || isLoadingLinkedWallet) return;
 
-    if (!isSessionVerified()) {
-      setVerificationReason('sign-in');
+    const userId = user.id;
+
+    // Check 1: Is this a new browser (no verification flag)?
+    if (!isBrowserVerified(userId)) {
+      setVerificationReason('new-browser');
       setNeedsVerification(true);
       hasDisconnectedRef.current = false;
-    } else {
-      // Check inactivity timeout
-      try {
-        const stored = localStorage.getItem(SESSION_KEY);
-        if (stored) {
-          const storedTime = parseInt(stored, 10);
-          if (!isNaN(storedTime)) {
-            lastActivityRef.current = storedTime;
-            if (Date.now() - storedTime >= INACTIVITY_TIMEOUT) {
-              setVerificationReason('session-expired');
-              setNeedsVerification(true);
-              hasDisconnectedRef.current = false;
-            }
-          }
-        }
-      } catch {
-        // Ignore
-      }
+      return;
     }
-  }, [user, linkedWalletAddress, isLoadingLinkedWallet, isSessionVerified]);
 
-  // When verification is needed and wallet is still connected, disconnect it
-  // so user must freshly reconnect to prove ownership
+    // Check 2: Has user been inactive for more than 5 days?
+    const lastActive = getLastActive(userId);
+    if (lastActive === null || Date.now() - lastActive >= INACTIVITY_TIMEOUT) {
+      setVerificationReason('inactive');
+      setNeedsVerification(true);
+      hasDisconnectedRef.current = false;
+      return;
+    }
+
+    // All good — update last active timestamp so it stays fresh
+    updateLastActive(userId);
+  }, [user, linkedWalletAddress, isLoadingLinkedWallet, isBrowserVerified, getLastActive, updateLastActive]);
+
+  // ─── Periodic inactivity check while the app is open ────────────────────
+
+  useEffect(() => {
+    if (!user || !linkedWalletAddress || needsVerification) return;
+
+    const userId = user.id;
+    const interval = setInterval(() => {
+      const lastActive = getLastActive(userId);
+      if (lastActive !== null && Date.now() - lastActive >= INACTIVITY_TIMEOUT) {
+        setVerificationReason('inactive');
+        setNeedsVerification(true);
+        hasDisconnectedRef.current = false;
+      }
+    }, ACTIVITY_CHECK_INTERVAL);
+
+    return () => clearInterval(interval);
+  }, [user, linkedWalletAddress, needsVerification, getLastActive]);
+
+  // ─── Track user activity to update last-active timestamp ────────────────
+
+  useEffect(() => {
+    if (!user || !linkedWalletAddress || needsVerification) return;
+
+    const userId = user.id;
+    let throttleTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const throttledUpdate = () => {
+      if (throttleTimer) return;
+      throttleTimer = setTimeout(() => {
+        throttleTimer = null;
+        updateLastActive(userId);
+      }, 10_000); // max once every 10 seconds
+    };
+
+    const events = ['mousedown', 'keydown', 'touchstart', 'scroll', 'mousemove'];
+    events.forEach(e => window.addEventListener(e, throttledUpdate, { passive: true }));
+
+    return () => {
+      events.forEach(e => window.removeEventListener(e, throttledUpdate));
+      if (throttleTimer) clearTimeout(throttleTimer);
+    };
+  }, [user, linkedWalletAddress, needsVerification, updateLastActive]);
+
+  // ─── When verification needed, disconnect the wallet so user must re-connect ─
+
   useEffect(() => {
     if (needsVerification && isConnected && !hasDisconnectedRef.current) {
       hasDisconnectedRef.current = true;
@@ -108,46 +155,23 @@ export function InactivityVerification() {
     }
   }, [needsVerification, isConnected, disconnect]);
 
-  // When wallet is verified (walletSaved becomes true), mark session as verified
+  // ─── When wallet verified successfully (walletSaved flips true) ──────────
+
   useEffect(() => {
-    if (needsVerification && walletSaved && hasDisconnectedRef.current) {
+    if (needsVerification && walletSaved && hasDisconnectedRef.current && user) {
+      // Mark this browser as verified and record last-active
+      markBrowserVerified(user.id);
+      updateLastActive(user.id);
       setNeedsVerification(false);
-      markSessionVerified();
-      updateActivity();
     }
-  }, [needsVerification, walletSaved, markSessionVerified, updateActivity]);
+  }, [needsVerification, walletSaved, user, markBrowserVerified, updateLastActive]);
 
-  // Track user activity events
-  useEffect(() => {
-    if (!user || !linkedWalletAddress) return;
+  // ─── Render ──────────────────────────────────────────────────────────────
 
-    const events = ['mousedown', 'keydown', 'touchstart', 'scroll', 'mousemove'];
-    let throttleTimer: ReturnType<typeof setTimeout> | null = null;
-    const throttledUpdate = () => {
-      if (throttleTimer) return;
-      throttleTimer = setTimeout(() => {
-        throttleTimer = null;
-        if (!needsVerification) updateActivity();
-      }, 10000);
-    };
-
-    events.forEach(event => window.addEventListener(event, throttledUpdate, { passive: true }));
-    checkIntervalRef.current = setInterval(checkInactivity, ACTIVITY_CHECK_INTERVAL);
-    if (!needsVerification) updateActivity();
-
-    return () => {
-      events.forEach(event => window.removeEventListener(event, throttledUpdate));
-      if (checkIntervalRef.current) clearInterval(checkIntervalRef.current);
-      if (throttleTimer) clearTimeout(throttleTimer);
-    };
-  }, [user, linkedWalletAddress, needsVerification, updateActivity, checkInactivity]);
-
-  // Don't render if not needed
   if (!user || !linkedWalletAddress || isLoadingLinkedWallet || !needsVerification) {
     return null;
   }
 
-  // Show the original ConnectWalletScreen in a fullscreen overlay
   return (
     <div className="fixed inset-0 z-[60] bg-background overflow-y-auto flex items-center justify-center p-4">
       <ConnectWalletScreen verificationReason={verificationReason} />
