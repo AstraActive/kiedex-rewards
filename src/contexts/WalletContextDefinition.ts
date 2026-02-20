@@ -14,6 +14,8 @@ export interface WalletContextType {
   walletLinkError: string | null;
   disconnectWallet: () => void;
   isLoadingLinkedWallet: boolean;
-  resetWalletConnection: () => void;  isReconnecting: boolean;}
+  resetWalletConnection: () => void;
+  isReconnecting: boolean;
+}
 
 export const WalletContext = createContext<WalletContextType | undefined>(undefined);

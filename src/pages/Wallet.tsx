@@ -36,12 +36,12 @@ function WalletContent() {
   const [ethAmount, setEthAmount] = useState('');
   const [adminWallet, setAdminWallet] = useState<`0x${string}` | null>(null);
   const [verificationStatus, setVerificationStatus] = useState<'idle' | 'verifying' | 'success' | 'error'>('idle');
-  
+
   const ethNum = parseFloat(ethAmount) || 0;
   const oilPreview = Math.floor(ethNum * ETH_TO_OIL_RATE);
 
   // Fetch admin wallet address from backend
-  const { data: depositConfig, isLoading: configLoading } = useQuery({
+  const { data: depositConfig, isLoading: configLoading, isError: configError, error: configErrorDetail } = useQuery({
     queryKey: ['deposit-config'],
     queryFn: async () => {
       const { data: sessionData } = await supabase.auth.getSession();
@@ -54,9 +54,11 @@ function WalletContent() {
       });
 
       if (response.error) throw response.error;
+      if (response.data?.error) throw new Error(response.data.error);
       return response.data as { adminWallet: string; chainId: number; minDeposit: string; conversionRate: number };
     },
     enabled: !!user,
+    retry: 1,
   });
 
   // Set admin wallet when config is loaded
@@ -95,7 +97,7 @@ function WalletContent() {
 
       if (response.error) throw response.error;
       if (response.data.error) throw new Error(response.data.error);
-      
+
       return response.data as { success: boolean; ethAmount: number; oilCredited: number; newBalance: number };
     },
     onSuccess: (data) => {
@@ -340,6 +342,17 @@ function WalletContent() {
               <Alert>
                 <Loader2 className="h-4 w-4 animate-spin" />
                 <AlertDescription>Loading deposit configuration...</AlertDescription>
+              </Alert>
+            )}
+
+            {configError && !configLoading && (
+              <Alert variant="destructive">
+                <AlertTriangle className="h-4 w-4" />
+                <AlertDescription>
+                  {(configErrorDetail as Error)?.message?.includes('not configured')
+                    ? 'Deposit system is not configured yet. Please contact support.'
+                    : 'Failed to load deposit configuration. Please refresh the page.'}
+                </AlertDescription>
               </Alert>
             )}
 

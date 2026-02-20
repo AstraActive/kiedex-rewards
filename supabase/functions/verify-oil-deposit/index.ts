@@ -115,7 +115,7 @@ Deno.serve(async (req) => {
     // Verify JWT
     const token = authHeader.replace('Bearer ', '')
     const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token)
-    
+
     if (claimsError || !claimsData?.claims) {
       console.log('JWT verification failed:', claimsError)
       return new Response(
@@ -287,27 +287,13 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Update user's oil balance
-    const { data: currentBalance, error: balanceError } = await supabaseAdmin
-      .from('balances')
-      .select('oil_balance')
-      .eq('user_id', userId)
-      .single()
-
-    if (balanceError) {
-      console.error('Failed to get current balance:', balanceError)
-      return new Response(
-        JSON.stringify({ error: 'Failed to get current balance' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      )
-    }
-
-    const newOilBalance = (currentBalance?.oil_balance || 0) + oilCredited
-
-    const { error: updateBalanceError } = await supabaseAdmin
-      .from('balances')
-      .update({ oil_balance: newOilBalance })
-      .eq('user_id', userId)
+    // Atomically increment the user's oil balance in a single SQL statement
+    // This prevents a race condition where two concurrent verifications could
+    // both read the same balance and overwrite each other's credits.
+    const { error: updateBalanceError } = await supabaseAdmin.rpc(
+      'increment_oil_balance',
+      { p_user_id: userId, p_amount: oilCredited }
+    )
 
     if (updateBalanceError) {
       console.error('Failed to update oil balance:', updateBalanceError)
@@ -316,6 +302,15 @@ Deno.serve(async (req) => {
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
+
+    // Fetch the new balance to return it in the response
+    const { data: updatedBalance } = await supabaseAdmin
+      .from('balances')
+      .select('oil_balance')
+      .eq('user_id', userId)
+      .single()
+
+    const newOilBalance = updatedBalance?.oil_balance ?? oilCredited
 
     console.log(`Successfully credited ${oilCredited} Oil to user ${userId}. New balance: ${newOilBalance}`)
 

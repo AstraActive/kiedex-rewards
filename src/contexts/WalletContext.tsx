@@ -168,11 +168,12 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           setWalletSaved(true);
           
           // Silently save to wallet_connections for compatibility (fire and forget)
+          // IMPORTANT: normalize address to lowercase so ON CONFLICT fires correctly
           supabase
             .from('wallet_connections')
             .upsert({
               user_id: user.id,
-              wallet_address: address,
+              wallet_address: normalizedAddress,
               chain_id: chainId,
               is_primary: true,
             }, {
@@ -206,10 +207,11 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
 
       try {
         // Check if this wallet is already linked to another account
+        // Use ilike (case-insensitive) or eq with normalized lowercase address to avoid bypass via mixed-case
         const { data: existingProfile, error: checkError } = await supabase
           .from('profiles')
           .select('user_id')
-          .eq('linked_wallet_address', address)
+          .ilike('linked_wallet_address', normalizedAddress)
           .maybeSingle();
 
         if (checkError) {
@@ -231,10 +233,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        // Link the wallet to this user's profile
+        // Link the wallet to this user's profile — always store lowercase
         const { error: updateError } = await supabase
           .from('profiles')
-          .update({ linked_wallet_address: address })
+          .update({ linked_wallet_address: normalizedAddress })
           .eq('user_id', user.id);
 
         if (updateError) {
@@ -270,20 +272,20 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        // Successfully linked
-        setLinkedWalletAddress(address);
+        // Successfully linked — store normalized (lowercase) address
+        setLinkedWalletAddress(normalizedAddress);
         setWalletSaved(true);
         setWalletLinkError(null);
         
         // Mark as linked in sessionStorage
         markLinkedInSession(user.id);
         
-        // Also save to wallet_connections for compatibility
+        // Also save to wallet_connections for compatibility — normalized address so ON CONFLICT works
         await supabase
           .from('wallet_connections')
           .upsert({
             user_id: user.id,
-            wallet_address: address,
+            wallet_address: normalizedAddress,
             chain_id: chainId,
             is_primary: true,
           }, {
