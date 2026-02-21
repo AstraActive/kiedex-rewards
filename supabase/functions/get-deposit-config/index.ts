@@ -31,7 +31,7 @@ Deno.serve(async (req) => {
 
     // Verify user
     const { data: { user }, error: userError } = await supabase.auth.getUser()
-    
+
     if (userError || !user) {
       console.log('User verification failed:', userError)
       return new Response(
@@ -69,19 +69,19 @@ Deno.serve(async (req) => {
     const chainId = parseInt(config['deposit_chain_id'] || '8453')
     const minDeposit = config['deposit_min_amount'] || '0.00000001'
     const conversionRate = parseInt(config['deposit_conversion_rate'] || '100000000')
-    
+
     if (!adminWallet || adminWallet === '0x0000000000000000000000000000000000000000') {
       console.error('Admin wallet not configured in system_config')
       return new Response(
         JSON.stringify({ error: 'Deposit system not configured. Please contact admin.' }),
-        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       )
     }
 
     console.log('Returning deposit config for user:', user.id)
 
     return new Response(
-      JSON.stringify({ 
+      JSON.stringify({
         adminWallet,
         chainId,
         minDeposit,
