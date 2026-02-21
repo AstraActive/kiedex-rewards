@@ -147,9 +147,21 @@ export function InactivityVerification() {
   }, [user, linkedWalletAddress, needsVerification, updateLastActive]);
 
   // ─── When verification needed, disconnect the wallet so user must re-connect ─
+  // IMPORTANT: If no wallet is connected when verification triggers (common on mobile),
+  // mark hasDisconnectedRef immediately so it won't fire when the user connects a
+  // wrong wallet for the first time (which would prevent the mismatch screen from showing).
 
   useEffect(() => {
-    if (needsVerification && isConnected && !hasDisconnectedRef.current) {
+    if (!needsVerification) return;
+
+    if (!isConnected) {
+      // Nothing to disconnect — mark done so the next connection isn't auto-disconnected
+      hasDisconnectedRef.current = true;
+      return;
+    }
+
+    if (!hasDisconnectedRef.current) {
+      // Wallet was connected when verification triggered — force reconnect
       hasDisconnectedRef.current = true;
       disconnect();
     }
