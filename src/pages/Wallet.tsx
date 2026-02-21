@@ -44,14 +44,8 @@ function WalletContent() {
   const { data: depositConfig, isLoading: configLoading, isError: configError, error: configErrorDetail } = useQuery({
     queryKey: ['deposit-config'],
     queryFn: async () => {
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) throw new Error('Not authenticated');
-
-      const response = await supabase.functions.invoke('get-deposit-config', {
-        headers: {
-          Authorization: `Bearer ${sessionData.session.access_token}`,
-        },
-      });
+      // supabase.functions.invoke() auto-attaches the session JWT — no need to manually set Authorization
+      const response = await supabase.functions.invoke('get-deposit-config');
 
       if (response.error) throw response.error;
       if (response.data?.error) throw new Error(response.data.error);
@@ -59,6 +53,8 @@ function WalletContent() {
     },
     enabled: !!user,
     retry: 1,
+    staleTime: 5 * 60 * 1000,      // cache for 5 min — config rarely changes
+    refetchOnWindowFocus: false,    // stop spam retries on tab switch
   });
 
   // Set admin wallet when config is loaded
