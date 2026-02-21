@@ -20,7 +20,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const { switchChain } = useSwitchChain();
   const { disconnect } = useDisconnect();
   const { toast } = useToast();
-  
+
   const [walletSaved, setWalletSaved] = useState(false);
   const [linkedWalletAddress, setLinkedWalletAddress] = useState<string | null>(null);
   const [walletMismatch, setWalletMismatch] = useState(false);
@@ -28,7 +28,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [walletLinkError, setWalletLinkError] = useState<string | null>(null);
   const [isLoadingLinkedWallet, setIsLoadingLinkedWallet] = useState(true);
   const [profileLoaded, setProfileLoaded] = useState(false);
-  
+
   // Ref to prevent multiple linking attempts in a single session
   const hasLinkedThisSessionRef = useRef(false);
   // Ref to track the address we last processed to avoid re-processing
@@ -59,22 +59,22 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const resetWalletConnection = useCallback(() => {
     // Disconnect wagmi
     disconnect();
-    
+
     // Clear all wallet storage including persistent state (full reset)
     clearWalletStorage(true);
-    
+
     // Clear KieDex session
     if (user?.id) {
       clearKiedexWalletSession(user.id);
     }
-    
+
     // Reset all states
     setWalletSaved(false);
     setWalletMismatch(false);
     setWalletLinkError(null);
     hasLinkedThisSessionRef.current = false;
     lastProcessedAddressRef.current = null;
-    
+
     toast({
       title: 'Wallet Reset',
       description: 'Wallet connection has been reset. You can now reconnect.',
@@ -109,10 +109,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         if (error) {
           console.error('Error fetching linked wallet:', error);
         }
-        
+
         const walletAddr = profile?.linked_wallet_address ?? null;
         setLinkedWalletAddress(walletAddr);
-        
+
         // If wallet exists, mark in session to prevent future linking attempts
         if (walletAddr) {
           markLinkedInSession(user.id);
@@ -160,13 +160,13 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       // Case 1: User already has a linked wallet - just verify match
       if (linkedWalletAddress) {
         lastProcessedAddressRef.current = normalizedAddress;
-        
+
         if (normalizedAddress === normalizedLinkedAddress) {
           // Correct wallet connected - just set state, NO toast
           setWalletMismatch(false);
           setWalletLinkError(null);
           setWalletSaved(true);
-          
+
           // Silently save to wallet_connections for compatibility (fire and forget)
           // IMPORTANT: normalize address to lowercase so ON CONFLICT fires correctly
           supabase
@@ -179,9 +179,9 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
             }, {
               onConflict: 'user_id,wallet_address',
             })
-            .then(() => {});
+            .then(() => { });
         } else {
-          // Wrong wallet connected
+          // Wrong wallet connected — WalletGuard will show the full-screen mismatch UI
           setWalletMismatch(true);
           setWalletSaved(false);
           setWalletLinkError(null);
@@ -276,10 +276,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         setLinkedWalletAddress(normalizedAddress);
         setWalletSaved(true);
         setWalletLinkError(null);
-        
+
         // Mark as linked in sessionStorage
         markLinkedInSession(user.id);
-        
+
         // Also save to wallet_connections for compatibility — normalized address so ON CONFLICT works
         await supabase
           .from('wallet_connections')
@@ -296,14 +296,14 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         try {
           const { data: updatedReferral, error: referralError } = await supabase
             .from('referrals')
-            .update({ 
-              status: 'active', 
-              activated_at: new Date().toISOString() 
+            .update({
+              status: 'active',
+              activated_at: new Date().toISOString()
             })
             .eq('referred_id', user.id)
             .eq('status', 'pending')
             .select();
-          
+
           if (referralError) {
             console.error('[Referral] Failed to activate referral:', referralError);
             toast({
