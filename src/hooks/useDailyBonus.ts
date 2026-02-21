@@ -16,7 +16,7 @@ export function useDailyBonus() {
     queryKey: ['daily_bonus', user?.id],
     queryFn: async () => {
       if (!user?.id) return null;
-      
+
       const { data, error } = await supabase
         .from('bonus_claims')
         .select('created_at, claim_date')
@@ -24,8 +24,8 @@ export function useDailyBonus() {
         .eq('bonus_type', 'DAILY_OIL')
         .order('created_at', { ascending: false })
         .limit(1)
-        .maybeSingle();
-      
+        .maybeSingle() as unknown as { data: { created_at: string; claim_date: string } | null; error: unknown };
+
       if (error) throw error;
       return data;
     },
@@ -37,81 +37,51 @@ export function useDailyBonus() {
   const now = new Date();
   const today = now.toISOString().split('T')[0]; // YYYY-MM-DD
   const lastClaimDate = lastClaim?.claim_date;
-  
+
   // User can claim if they haven't claimed today
   const canClaim = !lastClaimDate || lastClaimDate !== today;
-  
+
   // Calculate time until next claim (midnight UTC)
   const getTimeUntilMidnight = () => {
     if (canClaim) return 0;
-    
+
     const tomorrow = new Date(now);
     tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
     tomorrow.setUTCHours(0, 0, 0, 0);
-    
+
     return Math.max(0, tomorrow.getTime() - now.getTime());
   };
-  
+
   const timeUntilNextClaim = getTimeUntilMidnight();
 
-  // Claim mutation
+  // Claim mutation — uses atomic SECURITY DEFINER RPC
+  // (direct balance updates from user JWT are blocked by RLS; the RPC bypasses this safely)
   const claimMutation = useMutation({
     mutationFn: async () => {
       if (!user?.id) throw new Error('Not authenticated');
       if (!canClaim) throw new Error('Daily bonus already claimed');
 
-      // Insert bonus claim with today's date
-      const today = new Date().toISOString().split('T')[0]; // Get YYYY-MM-DD format
-      
-      const { error: claimError } = await supabase
-        .from('bonus_claims')
-        .insert({
-          user_id: user.id,
-          bonus_type: 'DAILY_OIL',
-          amount_oil: DAILY_BONUS_AMOUNT,
-          claim_date: today,
-        });
+      const today = new Date().toISOString().split('T')[0];
 
-      if (claimError) {
-        console.error('Bonus claim insert error:', claimError);
-        throw new Error(`Failed to record bonus claim: ${claimError.message}`);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data, error } = await (supabase.rpc as any)('claim_daily_bonus', {
+        p_user_id: user.id,
+        p_bonus_type: 'DAILY_OIL',
+        p_amount_oil: DAILY_BONUS_AMOUNT,
+        p_claim_date: today,
+      }) as { data: Array<{ success: boolean; message: string; new_balance: number }> | null; error: unknown };
+
+      if (error) {
+        console.error('Daily bonus RPC error:', error);
+        throw new Error('Failed to claim bonus. Please try again.');
       }
 
-      // Get current oil balance
-      const { data: balanceData, error: balanceError } = await supabase
-        .from('balances')
-        .select('oil_balance')
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (balanceError) {
-        console.error('Balance fetch error:', balanceError);
-        throw new Error(`Failed to fetch balance: ${balanceError.message}`);
+      const result = data?.[0];
+      if (!result?.success) {
+        throw new Error(result?.message || 'Failed to claim bonus');
       }
 
-      const currentOil = balanceData?.oil_balance || 0;
-      const newOilBalance = currentOil + DAILY_BONUS_AMOUNT;
-
-      // Use upsert to handle both insert and update atomically
-      const { error: upsertError } = await supabase
-        .from('balances')
-        .upsert(
-          {
-            user_id: user.id,
-            oil_balance: newOilBalance,
-          },
-          { 
-            onConflict: 'user_id',
-            ignoreDuplicates: false 
-          }
-        );
-
-      if (upsertError) {
-        console.error('Balance upsert error:', upsertError);
-        throw new Error(`Failed to update balance: ${upsertError.message}`);
-      }
-
-      return { amount: DAILY_BONUS_AMOUNT };
+      return { amount: DAILY_BONUS_AMOUNT, newBalance: result.new_balance };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['daily_bonus', user?.id] });

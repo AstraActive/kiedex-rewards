@@ -168,3 +168,75 @@ $$ LANGUAGE plpgsql
    SET search_path = public;   -- ← prevents search_path hijack
 
 GRANT EXECUTE ON FUNCTION update_config TO service_role;
+
+
+-- ── Fix 4: Atomic daily bonus claim (replaces direct balances upsert from frontend) ─
+-- The balances UPDATE RLS block (Fix 1) broke useDailyBonus which did a direct upsert.
+-- This SECURITY DEFINER function handles both bonus_claims insert + balance increment
+-- atomically, server-side, bypassing RLS safely.
+
+CREATE OR REPLACE FUNCTION public.claim_daily_bonus(
+  p_user_id    UUID,
+  p_bonus_type TEXT,
+  p_amount_oil NUMERIC,
+  p_claim_date DATE
+)
+RETURNS TABLE(
+  success      BOOLEAN,
+  message      TEXT,
+  new_balance  NUMERIC
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_new_balance NUMERIC;
+BEGIN
+  -- Guard: prevent double-claim
+  IF EXISTS (
+    SELECT 1 FROM public.bonus_claims
+    WHERE user_id   = p_user_id
+      AND bonus_type = p_bonus_type
+      AND claim_date = p_claim_date
+  ) THEN
+    RETURN QUERY SELECT false, 'Daily bonus already claimed for today'::TEXT, 0::NUMERIC;
+    RETURN;
+  END IF;
+
+  -- Record the claim (unique constraint prevents race conditions)
+  BEGIN
+    INSERT INTO public.bonus_claims (user_id, bonus_type, amount_oil, claim_date)
+    VALUES (p_user_id, p_bonus_type, p_amount_oil, p_claim_date);
+  EXCEPTION
+    WHEN unique_violation THEN
+      RETURN QUERY SELECT false, 'Daily bonus already claimed (race condition prevented)'::TEXT, 0::NUMERIC;
+      RETURN;
+  END;
+
+  -- Atomically increment oil balance
+  UPDATE public.balances
+  SET oil_balance = oil_balance + p_amount_oil,
+      updated_at  = now()
+  WHERE user_id = p_user_id
+  RETURNING oil_balance INTO v_new_balance;
+
+  -- Edge case: no balance row yet
+  IF v_new_balance IS NULL THEN
+    INSERT INTO public.balances (user_id, oil_balance)
+    VALUES (p_user_id, p_amount_oil)
+    ON CONFLICT (user_id) DO UPDATE
+      SET oil_balance = public.balances.oil_balance + p_amount_oil,
+          updated_at  = now()
+    RETURNING oil_balance INTO v_new_balance;
+  END IF;
+
+  RETURN QUERY SELECT true, 'Bonus claimed successfully'::TEXT, v_new_balance;
+
+EXCEPTION
+  WHEN OTHERS THEN
+    RETURN QUERY SELECT false, ('Claim failed: ' || SQLERRM)::TEXT, 0::NUMERIC;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.claim_daily_bonus(UUID, TEXT, NUMERIC, DATE) TO authenticated;
