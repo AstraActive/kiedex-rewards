@@ -102,9 +102,16 @@ export function ConnectWalletScreen({ pageName, verificationReason }: ConnectWal
   const contextMessages = getContextMessages();
 
   // ── PRIORITY 1: Wrong wallet connected — always show this first ──────────
-  // Must be BEFORE isReconnecting check because on mobile (WalletConnect),
-  // isReconnecting stays true indefinitely, hiding this screen forever.
-  if (walletMismatch && linkedWalletAddress && address) {
+  // Checks BOTH walletMismatch state AND direct address comparison.
+  // The direct comparison is the mobile fallback: on WalletConnect, walletMismatch
+  // state can lag because address resolves asynchronously after isConnected=true.
+  const isDirectMismatch = !!(
+    linkedWalletAddress &&
+    address &&
+    address.toLowerCase() !== linkedWalletAddress.toLowerCase()
+  );
+
+  if ((walletMismatch || isDirectMismatch) && linkedWalletAddress && address) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
