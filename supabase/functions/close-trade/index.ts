@@ -1,3 +1,4 @@
+// @ts-nocheck - Deno runtime file, type-checked by Deno extension not Node TS
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
@@ -380,3 +381,4 @@ Deno.serve(async (req) => {
     );
   }
 });
+
