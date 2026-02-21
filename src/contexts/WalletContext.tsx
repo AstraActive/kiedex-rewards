@@ -341,6 +341,27 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     handleWalletConnection();
   }, [user, isConnected, address, chainId, linkedWalletAddress, profileLoaded, isWrongNetwork, walletSaved, toast, isAlreadyLinkedInSession, markLinkedInSession, isReconnecting]);
 
+  // ── Mobile-safe mismatch detection ──────────────────────────────────────────
+  // On mobile (WalletConnect), isReconnecting can stay true longer than on desktop,
+  // causing the main effect above to bail before comparing addresses.
+  // This dedicated effect ONLY does the mismatch check — no linking logic, no guards.
+  useEffect(() => {
+    // Must have: a logged-in user, a linked wallet in DB, profile loaded, and an active connection
+    if (!user || !linkedWalletAddress || !profileLoaded || !isConnected || !address) return;
+
+    const normalizedAddress = address.toLowerCase();
+    const normalizedLinkedAddress = linkedWalletAddress.toLowerCase();
+
+    if (normalizedAddress !== normalizedLinkedAddress) {
+      // Wrong wallet — set mismatch immediately regardless of isReconnecting state
+      setWalletMismatch(true);
+      setWalletSaved(false);
+    } else {
+      // Correct wallet — clear mismatch
+      setWalletMismatch(false);
+    }
+  }, [address, linkedWalletAddress, isConnected, user, profileLoaded]);
+
   const switchToBase = useCallback(() => {
     if (switchChain) {
       switchChain({ chainId: BASE_CHAIN_ID });
