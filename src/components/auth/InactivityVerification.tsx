@@ -168,13 +168,13 @@ export function InactivityVerification() {
 
   // ─── Render ──────────────────────────────────────────────────────────────
 
-  if (!user || !linkedWalletAddress || isLoadingLinkedWallet || !needsVerification) {
-    return null;
-  }
+  // Show for: (1) inactivity/new-browser verification, OR (2) wallet mismatch
+  if (!user || !linkedWalletAddress || isLoadingLinkedWallet) return null;
+  if (!needsVerification && !walletMismatch) return null;
 
   return (
     <div className="fixed inset-0 z-[60] bg-background overflow-y-auto flex items-center justify-center p-4">
-      {/* Pass walletMismatch so wrong-wallet state shows correctly inside the verification overlay */}
+      {/* walletMismatch overrides verificationReason so the mismatch UI shows correctly */}
       <ConnectWalletScreen
         verificationReason={walletMismatch ? undefined : verificationReason}
       />
