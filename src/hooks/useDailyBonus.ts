@@ -24,7 +24,7 @@ export function useDailyBonus() {
         .eq('bonus_type', 'DAILY_OIL')
         .order('created_at', { ascending: false })
         .limit(1)
-        .maybeSingle() as unknown as { data: { created_at: string; claim_date: string } | null; error: unknown };
+        .maybeSingle();
 
       if (error) throw error;
       return data;
@@ -63,13 +63,12 @@ export function useDailyBonus() {
 
       const today = new Date().toISOString().split('T')[0];
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { data, error } = await (supabase.rpc as any)('claim_daily_bonus', {
+      const { data, error } = await supabase.rpc('claim_daily_bonus', {
         p_user_id: user.id,
         p_bonus_type: 'DAILY_OIL',
         p_amount_oil: DAILY_BONUS_AMOUNT,
         p_claim_date: today,
-      }) as { data: Array<{ success: boolean; message: string; new_balance: number }> | null; error: unknown };
+      });
 
       if (error) {
         console.error('Daily bonus RPC error:', error);
