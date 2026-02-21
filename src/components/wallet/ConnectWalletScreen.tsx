@@ -101,100 +101,9 @@ export function ConnectWalletScreen({ pageName, verificationReason }: ConnectWal
 
   const contextMessages = getContextMessages();
 
-  // Loading state while fetching linked wallet OR wagmi is reconnecting
-  if (isLoadingLinkedWallet || isReconnecting) {
-    return (
-      <div className="min-h-[80vh] flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
-              <Shield className="h-8 w-8 text-primary" />
-            </div>
-            <CardTitle className="text-2xl">{contextMessages.loadingTitle}</CardTitle>
-            <CardDescription>
-              {contextMessages.loadingDescription}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
-              <div className="flex items-start gap-3">
-                <Shield className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
-                <div className="text-sm">
-                  <p className="font-medium text-blue-500 mb-1">Security Verification</p>
-                  <p className="text-muted-foreground">
-                    {contextMessages.warningMessage}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-col items-center justify-center py-4">
-              <Loader2 className="h-8 w-8 animate-spin text-primary mb-3" />
-              <p className="text-sm font-medium">
-                {isReconnecting ? 'Reconnecting to your wallet...' : 'Verifying wallet...'}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Please wait, this will only take a moment
-              </p>
-            </div>
-
-            {linkedWalletAddress && (
-              <div className="p-3 rounded-lg bg-muted text-center">
-                <p className="text-xs text-muted-foreground mb-1">Your linked wallet:</p>
-                <p className="font-mono text-sm font-medium text-primary">
-                  {formatAddress(linkedWalletAddress)}
-                </p>
-              </div>
-            )}
-
-            <div className="pt-2 text-center">
-              <p className="text-xs text-muted-foreground">
-                Cannot dismiss • Wallet connection is required
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // Wrong network state
-  if (isWrongNetwork) {
-    return (
-      <div className="min-h-[80vh] flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
-              <AlertTriangle className="h-8 w-8 text-destructive" />
-            </div>
-            <CardTitle className="text-2xl">Wrong Network</CardTitle>
-            <CardDescription>
-              Please switch to Base network to continue
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive">
-              <AlertTriangle className="h-5 w-5 shrink-0" />
-              <span className="text-sm">You're connected to the wrong network</span>
-            </div>
-            <Button onClick={switchToBase} className="w-full">
-              Switch to Base Network
-            </Button>
-            <Button variant="outline" onClick={resetWalletConnection} className="w-full">
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Reset Connection
-            </Button>
-            <Button variant="ghost" onClick={signOut} className="w-full">
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // Wrong wallet connected (mismatch)
+  // ── PRIORITY 1: Wrong wallet connected — always show this first ──────────
+  // Must be BEFORE isReconnecting check because on mobile (WalletConnect),
+  // isReconnecting stays true indefinitely, hiding this screen forever.
   if (walletMismatch && linkedWalletAddress && address) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center p-4">
@@ -238,6 +147,79 @@ export function ConnectWalletScreen({ pageName, verificationReason }: ConnectWal
             <Button variant="ghost" onClick={signOut} className="w-full">
               <LogOut className="h-4 w-4 mr-2" />
               Sign Out
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+  // ── PRIORITY 2: Loading / reconnecting ───────────────────────────────────
+  if (isLoadingLinkedWallet || isReconnecting) {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+              <Shield className="h-8 w-8 text-primary" />
+            </div>
+            <CardTitle className="text-2xl">{contextMessages.loadingTitle}</CardTitle>
+            <CardDescription>{contextMessages.loadingDescription}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/20">
+              <div className="flex items-start gap-3">
+                <Shield className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-medium text-blue-500 mb-1">Security Verification</p>
+                  <p className="text-muted-foreground">{contextMessages.warningMessage}</p>
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-col items-center justify-center py-4">
+              <Loader2 className="h-8 w-8 animate-spin text-primary mb-3" />
+              <p className="text-sm font-medium">
+                {isReconnecting ? 'Reconnecting to your wallet...' : 'Verifying wallet...'}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1">Please wait, this will only take a moment</p>
+            </div>
+            {linkedWalletAddress && (
+              <div className="p-3 rounded-lg bg-muted text-center">
+                <p className="text-xs text-muted-foreground mb-1">Your linked wallet:</p>
+                <p className="font-mono text-sm font-medium text-primary">{formatAddress(linkedWalletAddress)}</p>
+              </div>
+            )}
+            <div className="pt-2 text-center">
+              <p className="text-xs text-muted-foreground">Cannot dismiss • Wallet connection is required</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // ── PRIORITY 3: Wrong network ────────────────────────────────────────────
+  if (isWrongNetwork) {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-destructive/10">
+              <AlertTriangle className="h-8 w-8 text-destructive" />
+            </div>
+            <CardTitle className="text-2xl">Wrong Network</CardTitle>
+            <CardDescription>Please switch to Base network to continue</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 text-destructive">
+              <AlertTriangle className="h-5 w-5 shrink-0" />
+              <span className="text-sm">You're connected to the wrong network</span>
+            </div>
+            <Button onClick={switchToBase} className="w-full">Switch to Base Network</Button>
+            <Button variant="outline" onClick={resetWalletConnection} className="w-full">
+              <RefreshCw className="h-4 w-4 mr-2" />Reset Connection
+            </Button>
+            <Button variant="ghost" onClick={signOut} className="w-full">
+              <LogOut className="h-4 w-4 mr-2" />Sign Out
             </Button>
           </CardContent>
         </Card>
