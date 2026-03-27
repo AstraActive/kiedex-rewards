@@ -24,12 +24,11 @@ function PartnerCard({ partner }: { partner: Partner }) {
         }}
       />
 
-      {/* Hover overlay — slides up from bottom */}
+      {/* Hover overlay — full card coverage, fades in */}
       <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 px-3
-                      bg-background/90 backdrop-blur-sm
+                      bg-black/85 backdrop-blur-sm
                       opacity-0 group-hover:opacity-100
-                      translate-y-2 group-hover:translate-y-0
-                      transition-all duration-300 ease-out">
+                      transition-opacity duration-300 ease-out">
         <p className="text-sm font-bold text-foreground text-center leading-tight line-clamp-1">
           {partner.name}
         </p>
