@@ -53,13 +53,23 @@ function PhaseRow({ phase }: { phase: RoadmapPhase }) {
   const cfg = statusConfig[phase.status] ?? statusConfig.planned;
   const Icon = cfg.icon;
   return (
-    <div className="flex items-start gap-4 pl-1">
-      <div className={`relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${cfg.circleClass}`}>
+    <div className="group flex items-start gap-4 pl-1 cursor-default">
+      {/* Circle — scale + glow on tap (active:) */}
+      <div className={`
+        relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full
+        transition-all duration-200
+        active:scale-125 active:shadow-[0_0_16px_4px_hsl(var(--primary)/0.35)]
+        ${cfg.circleClass}
+      `}>
         <Icon className="h-4 w-4" />
       </div>
-      <div className="pt-1 pb-8">
-        <p className="text-xs text-muted-foreground mb-0.5">Phase {phase.phase_number}</p>
-        <h3 className="text-sm font-semibold mb-1 leading-snug">{phase.title}</h3>
+      <div className="pt-1 pb-8 transition-transform duration-200 active:translate-x-1">
+        <p className="text-xs text-muted-foreground mb-0.5 transition-colors active:text-foreground/70">
+          Phase {phase.phase_number}
+        </p>
+        <h3 className="text-sm font-semibold mb-1 leading-snug transition-colors active:text-primary">
+          {phase.title}
+        </h3>
         {phase.description && <p className="text-xs text-muted-foreground mb-1.5">{phase.description}</p>}
         <Badge variant={cfg.badgeVariant} className={`text-xs ${cfg.badgeClass}`}>{cfg.label}</Badge>
       </div>
