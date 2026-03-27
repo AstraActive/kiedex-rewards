@@ -3,8 +3,9 @@ import { Check, CheckCheck, Clock, Calendar, Rocket, Zap } from 'lucide-react';
 import { useRoadmap, type RoadmapPhase, type RoadmapStatus } from '@/hooks/useRoadmap';
 
 const COLS = 4;
-const CIRCLE_R = 20; // half of h-10 circle (40px), used for connector alignment
-const CURVE_R   = 28; // border-radius for river curves
+const CIRCLE_R  = 20;  // half of h-10 circle (40px), used for connector alignment
+const CURVE_R   = 40;  // border-radius for river curves — larger = smoother
+const SNAKE_GAP = 40;  // extra px below each row so rows have breathing room
 
 const statusConfig: Record<RoadmapStatus, {
   icon: React.ElementType;
@@ -26,14 +27,23 @@ function PhaseCell({ phase }: { phase: RoadmapPhase }) {
   const cfg = statusConfig[phase.status] ?? statusConfig.planned;
   const Icon = cfg.icon;
   return (
-    <div className="w-1/4 flex flex-col items-center text-center px-2 pb-6 shrink-0">
-      <div className={`relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${cfg.circleClass}`}>
+    <div className="group w-1/4 flex flex-col items-center text-center px-2 pb-12 shrink-0 cursor-default">
+      {/* Circle — scale + glow on hover */}
+      <div className={`
+        relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full
+        transition-all duration-300
+        group-hover:scale-125 group-hover:shadow-[0_0_16px_4px_hsl(var(--primary)/0.35)]
+        ${cfg.circleClass}
+      `}>
         <Icon className="h-4 w-4" />
       </div>
-      <p className="text-xs text-muted-foreground mt-3 mb-1">Phase {phase.phase_number}</p>
-      <h3 className="text-sm font-semibold mb-2 leading-snug">{phase.title}</h3>
-      {phase.description && <p className="text-xs text-muted-foreground mb-2">{phase.description}</p>}
-      <Badge variant={cfg.badgeVariant} className={`text-xs ${cfg.badgeClass}`}>{cfg.label}</Badge>
+      {/* Text — slides down slightly, brightens on hover */}
+      <div className="transition-transform duration-300 group-hover:translate-y-1">
+        <p className="text-xs text-muted-foreground mt-3 mb-1 transition-colors group-hover:text-foreground/70">Phase {phase.phase_number}</p>
+        <h3 className="text-sm font-semibold mb-2 leading-snug transition-colors group-hover:text-primary">{phase.title}</h3>
+        {phase.description && <p className="text-xs text-muted-foreground mb-2">{phase.description}</p>}
+        <Badge variant={cfg.badgeVariant} className={`text-xs ${cfg.badgeClass}`}>{cfg.label}</Badge>
+      </div>
     </div>
   );
 }
@@ -117,7 +127,7 @@ function DesktopSnake({ phases }: { phases: RoadmapPhase[] }) {
                 <div
                   className="absolute border-t-2 border-l-2 border-b-2 border-border"
                   style={{
-                    top: CIRCLE_R, bottom: -CIRCLE_R,
+                    top: CIRCLE_R, bottom: -(CIRCLE_R + SNAKE_GAP),
                     left: 0, width: `${halfColPct}%`,
                     borderTopLeftRadius: CURVE_R, borderBottomLeftRadius: CURVE_R,
                   }}
@@ -126,7 +136,7 @@ function DesktopSnake({ phases }: { phases: RoadmapPhase[] }) {
                 <div
                   className="absolute border-t-2 border-r-2 border-b-2 border-border"
                   style={{
-                    top: CIRCLE_R, bottom: -CIRCLE_R,
+                    top: CIRCLE_R, bottom: -(CIRCLE_R + SNAKE_GAP),
                     right: 0, width: `${halfColPct}%`,
                     borderTopRightRadius: CURVE_R, borderBottomRightRadius: CURVE_R,
                   }}
