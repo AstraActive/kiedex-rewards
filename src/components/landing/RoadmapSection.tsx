@@ -107,7 +107,9 @@ function DesktopSnake({ phases }: { phases: RoadmapPhase[] }) {
         }
 
         return (
-          <div key={rowIdx} className="relative overflow-visible">
+          // marginBottom creates the actual gap; connector bridges into it via bottom:-CIRCLE_R
+          <div key={rowIdx} className="relative overflow-visible"
+            style={{ marginBottom: isLastRow ? 0 : SNAKE_GAP }}>
 
             {/* Horizontal line — spans between circle centers (or to edge for connector overlap) */}
             <div
@@ -121,11 +123,16 @@ function DesktopSnake({ phases }: { phases: RoadmapPhase[] }) {
               {spacers.map((_, i) => <div key={`s${i}`} className="w-1/4 shrink-0" />)}
             </div>
 
-            {/* Snake connector — from this row's circle center to next row's circle center */}
+            {/* Snake connector
+                - NO border-t: the horizontal line already covers the top junction,
+                  removing border-t eliminates the double-border corner artifact
+                - top: CIRCLE_R   → starts at this row's circle center (= line y)
+                - bottom: -CIRCLE_R - SNAKE_GAP → reaches the next row's circle center
+                  (next row starts SNAKE_GAP below due to marginBottom above) */}
             {!isLastRow && (
               isReversed ? (
                 <div
-                  className="absolute border-t-2 border-l-2 border-b-2 border-border"
+                  className="absolute border-l-2 border-b-2 border-border"
                   style={{
                     top: CIRCLE_R, bottom: -(CIRCLE_R + SNAKE_GAP),
                     left: 0, width: `${halfColPct}%`,
@@ -134,7 +141,7 @@ function DesktopSnake({ phases }: { phases: RoadmapPhase[] }) {
                 />
               ) : (
                 <div
-                  className="absolute border-t-2 border-r-2 border-b-2 border-border"
+                  className="absolute border-r-2 border-b-2 border-border"
                   style={{
                     top: CIRCLE_R, bottom: -(CIRCLE_R + SNAKE_GAP),
                     right: 0, width: `${halfColPct}%`,
