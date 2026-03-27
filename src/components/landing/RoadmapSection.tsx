@@ -69,34 +69,49 @@ function DesktopSnake({ phases }: { phases: RoadmapPhase[] }) {
       {rows.map((row, rowIdx) => {
         const isReversed = rowIdx % 2 !== 0;
         const isLastRow  = rowIdx === rows.length - 1;
+        const n = row.length;
+        const spacers = Array(COLS - n).fill(null);
 
-        // Spacers fill the remaining columns so the grid is always COLS wide.
-        // For reversed rows, we DON'T reverse the array — we use flex-row-reverse
-        // so Phase N+1 (first item) naturally lands in the rightmost column,
-        // directly below Phase N's column from the previous row.
-        const spacers = Array(COLS - row.length).fill(null);
+        // ── Horizontal line span ───────────────────────────────────────────
+        // For reversed rows, phases land on the RIGHT (flex-row-reverse).
+        //   leftmost visible circle center:  (COLS-n)*100/COLS + halfColPct  %  from left
+        //   rightmost visible circle center: halfColPct                       %  from right
+        // For the non-last row that connects to a curve, extend the line all
+        // the way to the connecting edge (0%) so it overlaps the curve's
+        // border-top and there's no rendering gap.
+        let lineLeft: string;
+        let lineRight: string;
+
+        if (isReversed) {
+          // Phases on right side
+          lineLeft  = isLastRow
+            ? `${(COLS - n) * (100 / COLS) + halfColPct}%`
+            : '0%'; // extend to left edge to overlap left-side connector
+          lineRight = `${halfColPct}%`;
+        } else {
+          // Phases on left side
+          lineLeft  = `${halfColPct}%`;
+          lineRight = isLastRow
+            ? `${(COLS - n) * (100 / COLS) + halfColPct}%`
+            : '0%'; // extend to right edge to overlap right-side connector
+        }
 
         return (
           <div key={rowIdx} className="relative overflow-visible">
 
-            {/* ── Full-width horizontal line (circles at z-10 above it) ── */}
-            {/* Extends full width so it always overlaps the connector edge — no gap */}
+            {/* Horizontal line — spans between circle centers (or to edge for connector overlap) */}
             <div
               className="absolute h-0.5 bg-border"
-              style={{ top: CIRCLE_R, left: 0, right: 0 }}
+              style={{ top: CIRCLE_R, left: lineLeft, right: lineRight }}
             />
 
-            {/* ── Phase cells ── */}
-            {/* flex-row-reverse for odd rows: items fill from right to left,
-                preserving natural array order (Ph5 appears rightmost = under Ph4) */}
+            {/* Phase cells — flex-row-reverse preserves natural phase order on right side */}
             <div className={`flex ${isReversed ? 'flex-row-reverse' : 'flex-row'} w-full`}>
               {row.map(phase => <PhaseCell key={phase.id} phase={phase} />)}
               {spacers.map((_, i) => <div key={`s${i}`} className="w-1/4 shrink-0" />)}
             </div>
 
-            {/* ── Snake connector ── */}
-            {/* top: CIRCLE_R   → border-top aligns with this row's horizontal line   */}
-            {/* bottom: -CIRCLE_R → extends into next row, reaching its circle center */}
+            {/* Snake connector — from this row's circle center to next row's circle center */}
             {!isLastRow && (
               isReversed ? (
                 <div
