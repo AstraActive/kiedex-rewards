@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 
-export type RoadmapStatus = 'live' | 'in_progress' | 'coming' | 'planned' | 'future';
+export type RoadmapStatus = 'completed' | 'live' | 'in_progress' | 'coming' | 'planned' | 'future';
 
 export interface RoadmapPhase {
   id: string;

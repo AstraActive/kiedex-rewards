@@ -1,5 +1,5 @@
 import { Badge } from '@/components/ui/badge';
-import { Check, Clock, Calendar, Rocket, Zap } from 'lucide-react';
+import { Check, CheckCheck, Clock, Calendar, Rocket, Zap } from 'lucide-react';
 import { useRoadmap, type RoadmapPhase, type RoadmapStatus } from '@/hooks/useRoadmap';
 
 // ── Status config — icon, circle style, badge style ─────────────────────────
@@ -10,6 +10,13 @@ const statusConfig: Record<RoadmapStatus, {
   badgeClass: string;
   label: string;
 }> = {
+  completed: {
+    icon: CheckCheck,
+    circleClass: 'bg-emerald-500/20 border-2 border-emerald-500 text-emerald-400',
+    badgeVariant: 'secondary',
+    badgeClass: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30',
+    label: 'Completed',
+  },
   live: {
     icon: Check,
     circleClass: 'bg-primary text-primary-foreground shadow-[0_0_12px_hsl(var(--primary)/0.5)]',

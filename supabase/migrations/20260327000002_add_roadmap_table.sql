@@ -3,6 +3,7 @@
 
 -- Create enum so Supabase Dashboard shows a dropdown selector for status
 CREATE TYPE public.roadmap_status AS ENUM (
+  'completed',   -- ✔ fully shipped and done (past phase)
   'live',        -- ✅ currently live / shipped
   'in_progress', -- 🔵 actively being worked on
   'coming',      -- 🕐 coming soon
