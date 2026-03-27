@@ -1,63 +1,73 @@
 import { usePartners, type Partner } from '@/hooks/usePartners';
-import { ExternalLink, Handshake } from 'lucide-react';
+import { Handshake } from 'lucide-react';
 
-// ── Skeleton loader ──────────────────────────────────────────────────────────
+// ── Skeleton ─────────────────────────────────────────────────────────────────
 function PartnerSkeleton() {
   return (
-    <div className="flex items-center gap-3 px-5 py-3 rounded-xl bg-card/40 border border-border/40 animate-pulse min-w-[180px]">
-      <div className="h-9 w-9 rounded-lg bg-muted shrink-0" />
-      <div className="space-y-1.5 flex-1">
-        <div className="h-3 w-24 rounded bg-muted" />
-        <div className="h-2.5 w-16 rounded bg-muted/60" />
-      </div>
-    </div>
+    <div className="w-[160px] h-[90px] rounded-xl bg-card/40 border border-border/40 animate-pulse shrink-0" />
   );
 }
 
-// ── Single partner card ──────────────────────────────────────────────────────
+// ── Single card: image fills card, hover shows overlay ───────────────────────
 function PartnerCard({ partner }: { partner: Partner }) {
-  const inner = (
-    <div className="group flex items-center gap-3 px-5 py-3 rounded-xl bg-card/40 border border-border/40 hover:border-primary/40 hover:bg-card/70 transition-all duration-300 min-w-[180px] select-none">
-      <div className="h-9 w-9 shrink-0 rounded-lg bg-muted/50 overflow-hidden flex items-center justify-center">
-        <img
-          src={partner.logo_url}
-          alt={partner.name}
-          className="h-full w-full object-contain p-1"
-          onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-        />
-      </div>
-      <div className="min-w-0">
-        <p className="text-sm font-semibold text-foreground leading-tight truncate group-hover:text-primary transition-colors">
+  const card = (
+    <div className="group relative w-[160px] h-[90px] shrink-0 rounded-xl overflow-hidden border border-border/40 cursor-pointer">
+      {/* Full-bleed logo image */}
+      <img
+        src={partner.logo_url}
+        alt={partner.name}
+        className="w-full h-full object-cover"
+        onError={(e) => {
+          const el = e.target as HTMLImageElement;
+          el.style.display = 'none';
+          if (el.parentElement) el.parentElement.style.background = 'hsl(var(--muted))';
+        }}
+      />
+
+      {/* Hover overlay — slides up from bottom */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 px-3
+                      bg-background/90 backdrop-blur-sm
+                      opacity-0 group-hover:opacity-100
+                      translate-y-2 group-hover:translate-y-0
+                      transition-all duration-300 ease-out">
+        <p className="text-sm font-bold text-foreground text-center leading-tight line-clamp-1">
           {partner.name}
         </p>
         {partner.description && (
-          <p className="text-xs text-muted-foreground truncate">{partner.description}</p>
+          <p className="text-[11px] text-primary/80 text-center leading-tight line-clamp-2">
+            {partner.description}
+          </p>
+        )}
+        {partner.website_url && (
+          <span className="mt-1 text-[10px] text-muted-foreground border border-border/60 rounded-full px-2 py-0.5">
+            Visit ↗
+          </span>
         )}
       </div>
-      {partner.website_url && (
-        <ExternalLink className="h-3.5 w-3.5 text-muted-foreground/50 group-hover:text-primary/70 shrink-0 transition-colors ml-auto" />
-      )}
     </div>
   );
 
   if (partner.website_url) {
     return (
       <a href={partner.website_url} target="_blank" rel="noopener noreferrer">
-        {inner}
+        {card}
       </a>
     );
   }
-  return inner;
+  return card;
 }
 
-// ── Marquee row (duplicates for seamless infinite scroll) ────────────────────
+// ── Marquee row — hover on the row pauses the animation ──────────────────────
 function MarqueeRow({ partners, reverse = false }: { partners: Partner[]; reverse?: boolean }) {
   const doubled = [...partners, ...partners];
-  const duration = `${Math.max(20, partners.length * 5)}s`;
+  const duration = `${Math.max(20, partners.length * 6)}s`;
+
   return (
-    <div className="overflow-hidden">
+    <div className="overflow-hidden group/row">
       <div
-        className={`flex gap-3 w-max ${reverse ? 'animate-marquee-reverse' : 'animate-marquee'}`}
+        className={`flex gap-4 w-max
+          ${reverse ? 'animate-marquee-reverse' : 'animate-marquee'}
+          group-hover/row:[animation-play-state:paused]`}
         style={{ animationDuration: duration }}
       >
         {doubled.map((p, i) => (
@@ -72,10 +82,9 @@ function MarqueeRow({ partners, reverse = false }: { partners: Partner[]; revers
 export function PartnersSection() {
   const { data: partners = [], isLoading } = usePartners();
 
-  // Hide entirely when no active partners exist (zero-config deploy)
   if (!isLoading && partners.length === 0) return null;
 
-  const useMarquee = partners.length >= 5;
+  const useMarquee = partners.length >= 4;
 
   return (
     <section className="container py-12 md:py-16 border-t border-border">
@@ -94,36 +103,32 @@ export function PartnersSection() {
 
         {/* Loading skeletons */}
         {isLoading && (
-          <div className="flex flex-wrap justify-center gap-3">
+          <div className="flex justify-center gap-4 flex-wrap">
             {Array.from({ length: 5 }).map((_, i) => <PartnerSkeleton key={i} />)}
           </div>
         )}
 
-        {/* Marquee for 5+ partners with edge fade */}
+        {/* Marquee — hover pauses, edge fade */}
         {!isLoading && useMarquee && (
           <div
-            className="space-y-3 overflow-hidden"
+            className="space-y-4 overflow-hidden"
             style={{ maskImage: 'linear-gradient(to right, transparent, black 8%, black 92%, transparent)' }}
           >
             <MarqueeRow partners={partners} />
-            {partners.length >= 8 && <MarqueeRow partners={partners} reverse />}
+            {partners.length >= 7 && <MarqueeRow partners={partners} reverse />}
           </div>
         )}
 
-        {/* Static grid for 1–4 partners */}
+        {/* Static grid for fewer than 4 */}
         {!isLoading && !useMarquee && (
-          <div className="flex flex-wrap justify-center gap-3">
+          <div className="flex flex-wrap justify-center gap-4">
             {partners.map((p) => <PartnerCard key={p.id} partner={p} />)}
           </div>
         )}
 
-        {/* Partnership CTA */}
-        <p className="text-center text-xs text-muted-foreground/50 mt-8">
+        <p className="text-center text-xs text-muted-foreground/40 mt-8">
           Interested in partnering?{' '}
-          <a
-            href="mailto:partners@kiedex.com"
-            className="hover:text-primary transition-colors underline underline-offset-2"
-          >
+          <a href="mailto:partners@kiedex.com" className="hover:text-primary transition-colors underline underline-offset-2">
             Get in touch
           </a>
         </p>
