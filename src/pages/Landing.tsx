@@ -11,6 +11,7 @@ import { RewardsSection } from '@/components/landing/RewardsSection';
 import { OilFuelSection } from '@/components/landing/OilFuelSection';
 import { FeaturesGridSection } from '@/components/landing/FeaturesGridSection';
 import { SecuritySection } from '@/components/landing/SecuritySection';
+import { PartnersSection } from '@/components/landing/PartnersSection';
 import { PoweredBySection } from '@/components/landing/PoweredBySection';
 import { RoadmapSection } from '@/components/landing/RoadmapSection';
 import { FinalCTASection } from '@/components/landing/FinalCTASection';
@@ -39,6 +40,7 @@ export default function Landing() {
         <OilFuelSection />
         <FeaturesGridSection />
         <SecuritySection />
+        <PartnersSection />
         <PoweredBySection />
         <RoadmapSection />
         <FinalCTASection />
