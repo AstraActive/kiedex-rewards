@@ -83,27 +83,17 @@ function DesktopSnake({ phases }: { phases: RoadmapPhase[] }) {
         const spacers = Array(COLS - n).fill(null);
 
         // ── Horizontal line span ───────────────────────────────────────────
-        // For reversed rows, phases land on the RIGHT (flex-row-reverse).
-        //   leftmost visible circle center:  (COLS-n)*100/COLS + halfColPct  %  from left
-        //   rightmost visible circle center: halfColPct                       %  from right
-        // For the non-last row that connects to a curve, extend the line all
-        // the way to the connecting edge (0%) so it overlaps the curve's
-        // border-top and there's no rendering gap.
         let lineLeft: string;
         let lineRight: string;
 
+        // Line spans exactly between actual circle centers — no edge extension needed.
+        // The connector's border-t bridges from the last circle center to the corner edge.
         if (isReversed) {
-          // Phases on right side
-          lineLeft  = isLastRow
-            ? `${(COLS - n) * (100 / COLS) + halfColPct}%`
-            : '0%'; // extend to left edge to overlap left-side connector
-          lineRight = `${halfColPct}%`;
+          lineLeft  = `${(COLS - n) * (100 / COLS) + halfColPct}%`; // leftmost visible circle
+          lineRight = `${halfColPct}%`;                              // rightmost circle (12.5% from right)
         } else {
-          // Phases on left side
-          lineLeft  = `${halfColPct}%`;
-          lineRight = isLastRow
-            ? `${(COLS - n) * (100 / COLS) + halfColPct}%`
-            : '0%'; // extend to right edge to overlap right-side connector
+          lineLeft  = `${halfColPct}%`;                              // leftmost circle
+          lineRight = `${(COLS - n) * (100 / COLS) + halfColPct}%`; // rightmost circle
         }
 
         return (
@@ -111,7 +101,7 @@ function DesktopSnake({ phases }: { phases: RoadmapPhase[] }) {
           <div key={rowIdx} className="relative overflow-visible"
             style={{ marginBottom: isLastRow ? 0 : SNAKE_GAP }}>
 
-            {/* Horizontal line — spans between circle centers (or to edge for connector overlap) */}
+            {/* Horizontal line — circle center to circle center */}
             <div
               className="absolute h-0.5 bg-border"
               style={{ top: CIRCLE_R, left: lineLeft, right: lineRight }}
@@ -123,16 +113,12 @@ function DesktopSnake({ phases }: { phases: RoadmapPhase[] }) {
               {spacers.map((_, i) => <div key={`s${i}`} className="w-1/4 shrink-0" />)}
             </div>
 
-            {/* Snake connector
-                - NO border-t: the horizontal line already covers the top junction,
-                  removing border-t eliminates the double-border corner artifact
-                - top: CIRCLE_R   → starts at this row's circle center (= line y)
-                - bottom: -CIRCLE_R - SNAKE_GAP → reaches the next row's circle center
-                  (next row starts SNAKE_GAP below due to marginBottom above) */}
+            {/* Snake connector — border-t bridges from line-end to corner,
+                border-r/l goes down through SNAKE_GAP, border-b connects to next row's line */}
             {!isLastRow && (
               isReversed ? (
                 <div
-                  className="absolute border-l-2 border-b-2 border-border"
+                  className="absolute border-t-2 border-l-2 border-b-2 border-border"
                   style={{
                     top: CIRCLE_R, bottom: -(CIRCLE_R + SNAKE_GAP),
                     left: 0, width: `${halfColPct}%`,
@@ -141,7 +127,7 @@ function DesktopSnake({ phases }: { phases: RoadmapPhase[] }) {
                 />
               ) : (
                 <div
-                  className="absolute border-r-2 border-b-2 border-border"
+                  className="absolute border-t-2 border-r-2 border-b-2 border-border"
                   style={{
                     top: CIRCLE_R, bottom: -(CIRCLE_R + SNAKE_GAP),
                     right: 0, width: `${halfColPct}%`,
