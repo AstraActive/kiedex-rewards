@@ -127,7 +127,7 @@ export function PartnersSection() {
 
         <p className="text-center text-xs text-muted-foreground/40 mt-8">
           Interested in partnering?{' '}
-          <a href="mailto:partners@kiedex.com" className="hover:text-primary transition-colors underline underline-offset-2">
+          <a href="mailto:partners@kiedex.app" className="hover:text-primary transition-colors underline underline-offset-2">
             Get in touch
           </a>
         </p>
