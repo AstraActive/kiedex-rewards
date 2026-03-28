@@ -107,7 +107,7 @@ function PhaseRow({ phase }: { phase: RoadmapPhase }) {
             transition-all duration-300 ease-out
             px-2.5 py-0 group-focus:py-1.5 rounded-lg
             bg-primary/5 border-l-2 border-primary/40
-            text-[11px] text-muted-foreground leading-snug
+            text-[11px] text-muted-foreground leading-snug whitespace-pre-line
           ">
             {phase.description}
           </div>
