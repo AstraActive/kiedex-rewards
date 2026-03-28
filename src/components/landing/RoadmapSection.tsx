@@ -46,7 +46,7 @@ function PhaseCell({ phase }: { phase: RoadmapPhase }) {
       </div>
 
       {/* Description tooltip — appears on hover, crypto-styled */}
-      {phase.description && (
+      {phase.description?.trim() && (
         <div className="
           pointer-events-none absolute top-full left-1/2 -translate-x-1/2 mt-3 z-50 w-44
           opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100
@@ -96,7 +96,7 @@ function PhaseRow({ phase }: { phase: RoadmapPhase }) {
           {phase.title}
         </h3>
         {/* Description — hidden by default, slides in on tap/focus, hides on blur */}
-        {phase.description && (
+        {phase.description?.trim() && (
           <div className="
             overflow-hidden max-h-0 opacity-0 mb-0
             group-focus:max-h-24 group-focus:opacity-100 group-focus:mb-2

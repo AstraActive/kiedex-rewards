@@ -26,7 +26,7 @@ export function useRoadmap() {
       if (error) throw error;
       return (data ?? []) as RoadmapPhase[];
     },
-    staleTime: 10 * 60 * 1000,
-    refetchOnWindowFocus: false,
+    staleTime: 60 * 1000, // 1 min — short enough to pick up new descriptions quickly
+    refetchOnWindowFocus: true,
   });
 }
