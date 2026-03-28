@@ -18,12 +18,14 @@ import { useTradesHistory } from '@/hooks/useTradesHistory';
 import { useUserRank } from '@/hooks/useLeaderboard';
 import { useTasks } from '@/hooks/useTasks';
 import { useWelcomeBonus } from '@/hooks/useWelcomeBonus';
+import { useWallet } from '@/hooks/useWallet';
 import { binanceService } from '@/services/binance';
 import { useState } from 'react';
+import { useBalance } from 'wagmi';
 import { TimeFrame } from '@/hooks/useKlines';
 import { 
   TrendingUp, Gift, Users, CheckSquare, Trophy, Copy, 
-  ArrowRight, Coins, DollarSign
+  ArrowRight, Coins, DollarSign, Wallet
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -41,6 +43,11 @@ function DashboardContent() {
 
   const [chartSymbol, setChartSymbol] = useState('BTCUSDT');
   const [chartTimeframe, setChartTimeframe] = useState<TimeFrame>('15m');
+
+  const { linkedWalletAddress } = useWallet();
+  const { data: onChainBalance, isLoading: onChainLoading } = useBalance({
+    address: linkedWalletAddress as `0x${string}` | undefined,
+  });
 
   const isLoading = profileLoading || balancesLoading;
 
@@ -79,7 +86,7 @@ function DashboardContent() {
         </div>
 
         {/* Balance Cards */}
-        <div className="grid gap-2 md:gap-3 grid-cols-3">
+        <div className="grid gap-2 md:gap-3 grid-cols-2 sm:grid-cols-4">
           <Card className="bg-card border-border">
             <CardContent className="p-2 md:p-3">
               <div className="flex items-center gap-1.5 mb-0.5">
@@ -101,6 +108,25 @@ function DashboardContent() {
               <div className="font-mono text-base md:text-lg font-semibold text-foreground">
                 {isLoading ? <Skeleton className="h-5 w-14" /> : formatBalance(balances?.demo_usdt_balance)}
               </div>
+            </CardContent>
+          </Card>
+
+          {/* On-chain ETH balance from connected wallet */}
+          <Card className="bg-card border-border">
+            <CardContent className="p-2 md:p-3">
+              <div className="flex items-center gap-1.5 mb-0.5">
+                <Wallet className="h-3 w-3 md:h-4 md:w-4 text-blue-400" />
+                <span className="text-[10px] md:text-xs text-muted-foreground">ETH (Wallet)</span>
+              </div>
+              <div className="font-mono text-base md:text-lg font-semibold text-blue-400">
+                {onChainLoading ? <Skeleton className="h-5 w-14" /> : onChainBalance
+                  ? `${parseFloat(onChainBalance.formatted).toFixed(4)}`
+                  : linkedWalletAddress ? '0.0000' : '–'
+                }
+              </div>
+              {onChainBalance && (
+                <div className="text-[10px] text-muted-foreground mt-0.5">on Base</div>
+              )}
             </CardContent>
           </Card>
 

@@ -72,7 +72,7 @@ export function ReferralUsersTable({ users, isLoading }: ReferralUsersTableProps
               <span>
                 Joined {formatDistanceToNow(new Date(user.created_at), { addSuffix: true })}
               </span>
-              <span>Vol: {formatVolume(user.total_volume)}</span>
+              <span title="Weighted counted volume (0.5× &lt;60s, 0.75× 60-180s, 1× 180s+)">Counted: {formatVolume(user.total_volume)}</span>
             </div>
             <div className="mt-2 pt-2 border-t border-border flex items-center justify-between text-xs">
               <span className="text-muted-foreground">Bonus Earned</span>
@@ -93,7 +93,7 @@ export function ReferralUsersTable({ users, isLoading }: ReferralUsersTableProps
             <th className="text-left py-2 px-2 text-xs text-muted-foreground font-medium">Wallet</th>
             <th className="text-left py-2 px-2 text-xs text-muted-foreground font-medium">Joined</th>
             <th className="text-left py-2 px-2 text-xs text-muted-foreground font-medium">Status</th>
-            <th className="text-right py-2 px-2 text-xs text-muted-foreground font-medium">Volume</th>
+            <th className="text-right py-2 px-2 text-xs text-muted-foreground font-medium" title="Weighted counted volume (0.5× &lt;60s, 0.75× 60-180s, 1× 180s+, capped $50k/day)">Counted Vol.</th>
             <th className="text-right py-2 px-2 text-xs text-muted-foreground font-medium">Bonus Earned</th>
           </tr>
         </thead>

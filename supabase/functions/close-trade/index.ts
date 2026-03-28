@@ -1,4 +1,4 @@
-// @ts-nocheck - Deno runtime file, type-checked by Deno extension not Node TS
+﻿// @ts-nocheck - Deno runtime file, type-checked by Deno extension not Node TS
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const corsHeaders = {
@@ -147,6 +147,12 @@ Deno.serve(async (req) => {
       }
     );
 
+    // Admin client uses SERVICE_ROLE_KEY to bypass RLS on the balances table.
+    const adminSupabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    );
+
     // Get current user
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) {
@@ -286,8 +292,8 @@ Deno.serve(async (req) => {
       throw new Error('Failed to close position');
     }
 
-    // Update user's balance (return margin + PnL)
-    const { data: balances, error: balError } = await supabase
+    // Update user's balance (return margin + PnL) - admin client bypasses RLS
+    const { data: balances, error: balError } = await adminSupabase
       .from('balances')
       .select('demo_usdt_balance')
       .eq('user_id', user.id)
@@ -298,7 +304,7 @@ Deno.serve(async (req) => {
     }
 
     const newBalance = balances.demo_usdt_balance + position.margin + realizedPnl;
-    const { error: updateError } = await supabase
+    const { error: updateError } = await adminSupabase
       .from('balances')
       .update({ demo_usdt_balance: Math.max(0, newBalance) })
       .eq('user_id', user.id);

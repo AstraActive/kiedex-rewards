@@ -124,7 +124,13 @@ Deno.serve(async (req) => {
 
     console.log('📦 Execute trade - User authenticated:', user.id);
 
-    // Verify user has a linked wallet (anti-spam check)
+        // Admin client uses SERVICE_ROLE_KEY to bypass RLS on the balances table.
+    const adminSupabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    );
+
+    // Verify user has a linked wallet
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('linked_wallet_address')
@@ -277,8 +283,8 @@ Deno.serve(async (req) => {
       return errorResponse('Failed to open position. Please try again.');
     }
 
-    // Deduct margin and Oil from balances
-    const { error: updateError } = await supabase
+    // Deduct margin and Oil from balances (admin client bypasses RLS)
+    const { error: updateError } = await adminSupabase
       .from('balances')
       .update({
         demo_usdt_balance: balances.demo_usdt_balance - margin,
