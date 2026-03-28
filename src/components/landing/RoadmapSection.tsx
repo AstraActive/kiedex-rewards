@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Badge } from '@/components/ui/badge';
 import { Check, CheckCheck, Clock, Calendar, Rocket, Zap } from 'lucide-react';
 import { useRoadmap, type RoadmapPhase, type RoadmapStatus } from '@/hooks/useRoadmap';
@@ -24,11 +26,20 @@ const statusConfig: Record<RoadmapStatus, {
 
 // ── Desktop phase cell — fixed 25% width ─────────────────────────────────────
 function PhaseCell({ phase }: { phase: RoadmapPhase }) {
-  const cfg = statusConfig[phase.status] ?? statusConfig.planned;
-  const Icon = cfg.icon;
+  const [pos, setPos]         = useState({ x: 0, y: 0 });
+  const [hovered, setHovered] = useState(false);
+  const cfg    = statusConfig[phase.status] ?? statusConfig.planned;
+  const Icon   = cfg.icon;
+  const hasDesc = Boolean(phase.description?.trim());
+
   return (
-    <div className="group relative w-1/4 flex flex-col items-center text-center px-2 pb-12 shrink-0 cursor-default">
-      {/* Circle — scale + glow on hover */}
+    <div
+      className="group relative w-1/4 flex flex-col items-center text-center px-2 pb-12 shrink-0 cursor-default"
+      onMouseMove={e => setPos({ x: e.clientX, y: e.clientY })}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {/* Circle */}
       <div className={`
         relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full
         transition-all duration-300
@@ -45,31 +56,24 @@ function PhaseCell({ phase }: { phase: RoadmapPhase }) {
         <Badge variant={cfg.badgeVariant} className={`text-xs ${cfg.badgeClass}`}>{cfg.label}</Badge>
       </div>
 
-      {/* Description tooltip — appears on hover, crypto-styled */}
-      {phase.description?.trim() && (
-        <div className="
-          pointer-events-none absolute top-full left-1/2 -translate-x-1/2 mt-3 z-50 w-44
-          opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100
-          transition-all duration-300 ease-out
-        ">
-          {/* Glowing card with primary accent */}
-          <div className="
-            relative rounded-xl px-3 py-2.5 text-center
-            bg-background/95 backdrop-blur-md
-            border border-primary/30
-            shadow-[0_0_20px_hsl(var(--primary)/0.15),0_4px_16px_rgba(0,0,0,0.4)]
-          ">
-            {/* Top accent line */}
-            <div className="absolute top-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent rounded-full" />
-            <p className="text-[11px] text-muted-foreground leading-snug">{phase.description}</p>
+      {/* Cursor-following tooltip — portal to body, never clipped, near cursor */}
+      {hasDesc && hovered && createPortal(
+        <div
+          className="pointer-events-none fixed z-[9999]"
+          style={{ left: pos.x + 16, top: pos.y + 16 }}
+        >
+          <div className="relative w-52 rounded-xl px-3 py-2.5 bg-background/95 backdrop-blur-md border border-primary/30 shadow-[0_0_24px_hsl(var(--primary)/0.2),0_4px_20px_rgba(0,0,0,0.5)]">
+            <div className="absolute top-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent" />
+            {/* whitespace-pre-line preserves \n newlines from Supabase */}
+            <p className="text-[11px] text-muted-foreground leading-relaxed whitespace-pre-line">{phase.description}</p>
           </div>
-          {/* Tooltip arrow */}
-          <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 bg-background border-l border-t border-primary/30" />
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
 }
+
 
 // ── Mobile phase row ──────────────────────────────────────────────────────────
 function PhaseRow({ phase }: { phase: RoadmapPhase }) {
