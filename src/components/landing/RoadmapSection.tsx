@@ -27,23 +27,46 @@ function PhaseCell({ phase }: { phase: RoadmapPhase }) {
   const cfg = statusConfig[phase.status] ?? statusConfig.planned;
   const Icon = cfg.icon;
   return (
-    <div className="group w-1/4 flex flex-col items-center text-center px-2 pb-12 shrink-0 cursor-default">
+    <div className="group relative w-1/4 flex flex-col items-center text-center px-2 pb-12 shrink-0 cursor-default">
       {/* Circle — scale + glow on hover */}
       <div className={`
         relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full
         transition-all duration-300
-        group-hover:scale-125 group-hover:shadow-[0_0_16px_4px_hsl(var(--primary)/0.35)]
+        group-hover:scale-125 group-hover:shadow-[0_0_20px_6px_hsl(var(--primary)/0.4)]
         ${cfg.circleClass}
       `}>
         <Icon className="h-4 w-4" />
       </div>
-      {/* Text — slides down slightly, brightens on hover */}
+
+      {/* Static text */}
       <div className="transition-transform duration-300 group-hover:translate-y-1">
         <p className="text-xs text-muted-foreground mt-3 mb-1 transition-colors group-hover:text-foreground/70">Phase {phase.phase_number}</p>
         <h3 className="text-sm font-semibold mb-2 leading-snug transition-colors group-hover:text-primary">{phase.title}</h3>
-        {phase.description && <p className="text-xs text-muted-foreground mb-2">{phase.description}</p>}
         <Badge variant={cfg.badgeVariant} className={`text-xs ${cfg.badgeClass}`}>{cfg.label}</Badge>
       </div>
+
+      {/* Description tooltip — appears on hover, crypto-styled */}
+      {phase.description && (
+        <div className="
+          pointer-events-none absolute top-full left-1/2 -translate-x-1/2 mt-3 z-50 w-44
+          opacity-0 scale-95 group-hover:opacity-100 group-hover:scale-100
+          transition-all duration-300 ease-out
+        ">
+          {/* Glowing card with primary accent */}
+          <div className="
+            relative rounded-xl px-3 py-2.5 text-center
+            bg-background/95 backdrop-blur-md
+            border border-primary/30
+            shadow-[0_0_20px_hsl(var(--primary)/0.15),0_4px_16px_rgba(0,0,0,0.4)]
+          ">
+            {/* Top accent line */}
+            <div className="absolute top-0 left-4 right-4 h-px bg-gradient-to-r from-transparent via-primary/60 to-transparent rounded-full" />
+            <p className="text-[11px] text-muted-foreground leading-snug">{phase.description}</p>
+          </div>
+          {/* Tooltip arrow */}
+          <div className="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 rotate-45 bg-background border-l border-t border-primary/30" />
+        </div>
+      )}
     </div>
   );
 }
@@ -54,7 +77,7 @@ function PhaseRow({ phase }: { phase: RoadmapPhase }) {
   const Icon = cfg.icon;
   return (
     <div className="group flex items-start gap-4 pl-1 cursor-default">
-      {/* Circle — scale + glow on tap (active:) */}
+      {/* Circle — scale + glow on tap */}
       <div className={`
         relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full
         transition-all duration-200
@@ -63,14 +86,23 @@ function PhaseRow({ phase }: { phase: RoadmapPhase }) {
       `}>
         <Icon className="h-4 w-4" />
       </div>
-      <div className="pt-1 pb-8 transition-transform duration-200 active:translate-x-1">
+      <div className="pt-1 pb-6 transition-transform duration-200 active:translate-x-1">
         <p className="text-xs text-muted-foreground mb-0.5 transition-colors active:text-foreground/70">
           Phase {phase.phase_number}
         </p>
-        <h3 className="text-sm font-semibold mb-1 leading-snug transition-colors active:text-primary">
+        <h3 className="text-sm font-semibold mb-1.5 leading-snug transition-colors active:text-primary">
           {phase.title}
         </h3>
-        {phase.description && <p className="text-xs text-muted-foreground mb-1.5">{phase.description}</p>}
+        {/* Description — always visible on mobile (no hover on touch), crypto styled */}
+        {phase.description && (
+          <div className="
+            mb-2 px-2.5 py-1.5 rounded-lg
+            bg-primary/5 border-l-2 border-primary/40
+            text-[11px] text-muted-foreground leading-snug
+          ">
+            {phase.description}
+          </div>
+        )}
         <Badge variant={cfg.badgeVariant} className={`text-xs ${cfg.badgeClass}`}>{cfg.label}</Badge>
       </div>
     </div>
