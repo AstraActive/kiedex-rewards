@@ -76,27 +76,32 @@ function PhaseRow({ phase }: { phase: RoadmapPhase }) {
   const cfg = statusConfig[phase.status] ?? statusConfig.planned;
   const Icon = cfg.icon;
   return (
-    <div className="group flex items-start gap-4 pl-1 cursor-default">
-      {/* Circle — scale + glow on tap */}
+    // tabIndex makes the div focusable — tap on mobile = focus, tap elsewhere = blur
+    <div className="group flex items-start gap-4 pl-1 cursor-default focus:outline-none" tabIndex={0}>
+      {/* Circle — scale + glow on tap/focus */}
       <div className={`
         relative z-10 flex h-10 w-10 shrink-0 items-center justify-center rounded-full
         transition-all duration-200
-        active:scale-125 active:shadow-[0_0_16px_4px_hsl(var(--primary)/0.35)]
+        active:scale-125 group-focus:scale-110
+        group-focus:shadow-[0_0_16px_4px_hsl(var(--primary)/0.35)]
         ${cfg.circleClass}
       `}>
         <Icon className="h-4 w-4" />
       </div>
       <div className="pt-1 pb-6 transition-transform duration-200 active:translate-x-1">
-        <p className="text-xs text-muted-foreground mb-0.5 transition-colors active:text-foreground/70">
+        <p className="text-xs text-muted-foreground mb-0.5 transition-colors group-focus:text-foreground/70">
           Phase {phase.phase_number}
         </p>
-        <h3 className="text-sm font-semibold mb-1.5 leading-snug transition-colors active:text-primary">
+        <h3 className="text-sm font-semibold mb-1.5 leading-snug transition-colors group-focus:text-primary">
           {phase.title}
         </h3>
-        {/* Description — always visible on mobile (no hover on touch), crypto styled */}
+        {/* Description — hidden by default, slides in on tap/focus, hides on blur */}
         {phase.description && (
           <div className="
-            mb-2 px-2.5 py-1.5 rounded-lg
+            overflow-hidden max-h-0 opacity-0 mb-0
+            group-focus:max-h-24 group-focus:opacity-100 group-focus:mb-2
+            transition-all duration-300 ease-out
+            px-2.5 py-0 group-focus:py-1.5 rounded-lg
             bg-primary/5 border-l-2 border-primary/40
             text-[11px] text-muted-foreground leading-snug
           ">
@@ -108,6 +113,7 @@ function PhaseRow({ phase }: { phase: RoadmapPhase }) {
     </div>
   );
 }
+
 
 // ── Desktop snake ─────────────────────────────────────────────────────────────
 function DesktopSnake({ phases }: { phases: RoadmapPhase[] }) {
