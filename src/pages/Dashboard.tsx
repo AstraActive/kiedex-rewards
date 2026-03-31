@@ -120,8 +120,8 @@ function DashboardContent() {
               </div>
               <div className="font-mono text-base md:text-lg font-semibold text-blue-400">
                 {onChainLoading ? <Skeleton className="h-5 w-14" /> : onChainBalance
-                  ? `${parseFloat(onChainBalance.formatted).toFixed(4)}`
-                  : linkedWalletAddress ? '0.0000' : '–'
+                  ? `${parseFloat(onChainBalance.formatted).toFixed(8)}`
+                  : linkedWalletAddress ? '0.00000000' : '–'
                 }
               </div>
               {onChainBalance && (

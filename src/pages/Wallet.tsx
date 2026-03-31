@@ -68,9 +68,10 @@ function WalletContent() {
     }
   }, [depositConfig]);
 
-  // Fetch on-chain ETH balance from Base network
+  // Fetch on-chain ETH balance — prefer live wagmi address, fall back to linked wallet from DB
+  const effectiveAddress = (address || linkedWalletAddress) as `0x${string}` | undefined;
   const { data: onChainBalance, isLoading: onChainLoading, refetch: refetchBalance } = useBalance({
-    address: address as `0x${string}`,
+    address: effectiveAddress,
     chainId: 8453,
   });
 
@@ -234,9 +235,9 @@ function WalletContent() {
                   '0.000000 ETH'
                 )}
               </p>
-              {address && (
+              {effectiveAddress && (
                 <a
-                  href={`https://basescan.org/address/${address}`}
+                  href={`https://basescan.org/address/${effectiveAddress}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 text-xs text-primary hover:underline mt-2"
