@@ -230,9 +230,9 @@ function WalletContent() {
                 {onChainLoading ? (
                   <Skeleton className="h-8 w-28 mx-auto" />
                 ) : onChainBalance ? (
-                  `${parseFloat(onChainBalance.formatted).toFixed(6)} ETH`
+                  `${parseFloat(onChainBalance.formatted).toFixed(8)} ETH`
                 ) : (
-                  '0.000000 ETH'
+                  '0.00000000 ETH'
                 )}
               </p>
               {effectiveAddress && (
